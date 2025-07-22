@@ -55,6 +55,24 @@ class AgentTradingSystem:
         self.cycles_completed = 0
         self.errors_encountered = 0
         
+        # Dashboard data tracking
+        self.latest_decision = None
+        self.latest_price = 0
+        self.price_change_24h = 0
+        self.volume_24h = 0
+        self.total_return = 0.0
+        self.total_pnl = 0.0
+        self.win_rate = 0
+        self.current_risk_level = "LOW"
+        self.current_var = 0
+        self.max_drawdown = 0.0
+        self.sharpe_ratio = 0.0
+        self.is_running = False
+        
+        # Performance tracking
+        self.trades_history = []
+        self.daily_returns = []
+        
         main_logger.log_action(
             "system_initialization", 
             {
@@ -196,6 +214,11 @@ class AgentTradingSystem:
             data_logger.info("Fetching latest BTC market data...")
             market_data = await self.data_manager.fetch_latest_data()
             
+            # Update dashboard price data
+            self.latest_price = market_data.get('latest_price', 0)
+            self.price_change_24h = market_data.get('price_change_24h', 0)
+            self.volume_24h = market_data.get('volume_24h', 0)
+            
             data_logger.log_data_operation(
                 operation="fetch_latest",
                 symbol="BTC",
@@ -214,6 +237,14 @@ class AgentTradingSystem:
                 market_data, portfolio_data
             )
             
+            # Update dashboard decision data
+            self.latest_decision = {
+                'action': trading_signal.get('action', 'HOLD'),
+                'confidence': trading_signal.get('final_confidence', 0),
+                'reasoning': trading_signal.get('reasoning', 'AI analysis completed'),
+                'timestamp': time.time()
+            }
+            
             # Step 3: Execute trades with ADK
             adk_logger.info("Processing signals with ADK Execution Engine...")
             execution_result = await self.execution_engine.process_signal(trading_signal)
@@ -228,6 +259,9 @@ class AgentTradingSystem:
             # Update cycle metrics
             cycle_time = time.time() - cycle_start
             self.cycles_completed += 1
+            
+            # Update dashboard performance metrics
+            self._update_performance_metrics(execution_result, trading_signal)
             
             main_logger.log_action(
                 "trading_cycle",
@@ -261,6 +295,54 @@ class AgentTradingSystem:
             main_logger.error(f"Trading cycle {cycle_id} failed: {e}")
             raise
     
+    def _update_performance_metrics(self, execution_result: Dict[str, Any], trading_signal: Dict[str, Any]):
+        """Update performance metrics for dashboard"""
+        try:
+            # Update risk level based on current conditions
+            confidence = trading_signal.get('final_confidence', 0)
+            if confidence > 80:
+                self.current_risk_level = "HIGH"
+            elif confidence > 50:
+                self.current_risk_level = "MEDIUM"
+            else:
+                self.current_risk_level = "LOW"
+            
+            # Calculate win rate (simplified)
+            if execution_result.get('executed'):
+                pnl = execution_result.get('pnl', 0)
+                self.trades_history.append(pnl)
+                
+                # Keep only recent trades for win rate calculation
+                if len(self.trades_history) > 100:
+                    self.trades_history = self.trades_history[-100:]
+                
+                # Calculate win rate
+                winning_trades = sum(1 for pnl in self.trades_history if pnl > 0)
+                self.win_rate = int((winning_trades / len(self.trades_history)) * 100) if self.trades_history else 0
+                
+                # Update total P&L
+                self.total_pnl = sum(self.trades_history)
+                
+                # Calculate total return percentage
+                if self.total_pnl != 0:
+                    initial_capital = 10000  # Assume $10k initial
+                    self.total_return = (self.total_pnl / initial_capital) * 100
+            
+            # Update VaR (simplified calculation)
+            if len(self.trades_history) > 10:
+                import numpy as np
+                returns = np.array(self.trades_history[-30:])  # Last 30 trades
+                self.current_var = int(abs(np.percentile(returns, 5)))  # 5% VaR
+                
+                # Calculate max drawdown
+                cumulative_returns = np.cumsum(returns)
+                running_max = np.maximum.accumulate(cumulative_returns)
+                drawdowns = cumulative_returns - running_max
+                self.max_drawdown = abs(float(np.min(drawdowns))) if len(drawdowns) > 0 else 0.0
+            
+        except Exception as e:
+            main_logger.error(f"Error updating performance metrics: {e}")
+    
     async def _get_portfolio_data(self) -> Dict[str, Any]:
         """Get current portfolio information"""
         
@@ -291,6 +373,7 @@ class AgentTradingSystem:
         )
         
         self.running = True
+        self.is_running = True  # For dashboard
         
         try:
             while self.running:
@@ -317,6 +400,9 @@ class AgentTradingSystem:
         except KeyboardInterrupt:
             main_logger.info("Received shutdown signal")
         finally:
+            self.running = False
+            self.is_running = False  # For dashboard
+            main_logger.info("Continuous trading stopped")
             await self.shutdown()
     
     async def _log_system_metrics(self):
