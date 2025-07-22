@@ -10,6 +10,8 @@ import signal
 import sys
 from typing import Dict, Any, Optional
 import os
+import json
+from pathlib import Path
 
 # Import our modules
 from .config import ConfigManager
@@ -245,6 +247,17 @@ class AgentTradingSystem:
                 'timestamp': time.time()
             }
             
+            # Write decision data to file for dashboard
+            self._write_dashboard_data({
+                'market_data': {
+                    'price': self.latest_price,
+                    'change_24h': self.price_change_24h,
+                    'volume_24h': self.volume_24h,
+                    'timestamp': time.time()
+                },
+                'decision': self.latest_decision
+            })
+            
             # Step 3: Execute trades with ADK
             adk_logger.info("Processing signals with ADK Execution Engine...")
             execution_result = await self.execution_engine.process_signal(trading_signal)
@@ -328,20 +341,72 @@ class AgentTradingSystem:
                     initial_capital = 10000  # Assume $10k initial
                     self.total_return = (self.total_pnl / initial_capital) * 100
             
-            # Update VaR (simplified calculation)
+            # Calculate max drawdown (simplified - without numpy)
             if len(self.trades_history) > 10:
-                import numpy as np
-                returns = np.array(self.trades_history[-30:])  # Last 30 trades
-                self.current_var = int(abs(np.percentile(returns, 5)))  # 5% VaR
-                
-                # Calculate max drawdown
-                cumulative_returns = np.cumsum(returns)
-                running_max = np.maximum.accumulate(cumulative_returns)
-                drawdowns = cumulative_returns - running_max
-                self.max_drawdown = abs(float(np.min(drawdowns))) if len(drawdowns) > 0 else 0.0
+                try:
+                    returns = self.trades_history[-30:]  # Last 30 trades
+                    # Simple VaR calculation (5th percentile)
+                    sorted_returns = sorted(returns)
+                    var_index = max(0, int(len(sorted_returns) * 0.05))
+                    self.current_var = int(abs(sorted_returns[var_index]))
+                    
+                    # Simple max drawdown calculation
+                    cumulative = 0
+                    max_value = 0
+                    max_drawdown = 0
+                    for ret in returns:
+                        cumulative += ret
+                        max_value = max(max_value, cumulative)
+                        drawdown = max_value - cumulative
+                        max_drawdown = max(max_drawdown, drawdown)
+                    self.max_drawdown = max_drawdown
+                except Exception as calc_error:
+                    main_logger.error(f"Error in calculations: {calc_error}")
+            
+            # Write updated performance data to dashboard
+            self._write_dashboard_data({})
             
         except Exception as e:
             main_logger.error(f"Error updating performance metrics: {e}")
+    
+    def _write_dashboard_data(self, data: Dict[str, Any]):
+        """Write data to files for dashboard consumption"""
+        try:
+            # Create data directory if it doesn't exist
+            data_dir = Path("/app/data")
+            data_dir.mkdir(exist_ok=True)
+            
+            # Write market data
+            if 'market_data' in data:
+                market_file = data_dir / "latest_market_data.json"
+                with open(market_file, 'w') as f:
+                    json.dump(data['market_data'], f)
+            
+            # Write decision data
+            if 'decision' in data:
+                decision_file = data_dir / "latest_decision.json"
+                with open(decision_file, 'w') as f:
+                    json.dump(data['decision'], f)
+            
+            # Write performance data
+            performance_data = {
+                'total_pnl': getattr(self, 'total_pnl', 0),
+                'win_rate': getattr(self, 'win_rate', 0),
+                'total_return': getattr(self, 'total_return', 0),
+                'current_risk_level': getattr(self, 'current_risk_level', 'LOW'),
+                'current_var': getattr(self, 'current_var', 0),
+                'max_drawdown': getattr(self, 'max_drawdown', 0),
+                'cycles_completed': self.cycles_completed,
+                'errors_encountered': self.errors_encountered,
+                'uptime_seconds': time.time() - self.start_time,
+                'timestamp': time.time()
+            }
+            performance_file = data_dir / "latest_performance.json"
+            with open(performance_file, 'w') as f:
+                json.dump(performance_data, f)
+                
+        except Exception as e:
+            main_logger.error(f"Error writing dashboard data: {e}")
     
     async def _get_portfolio_data(self) -> Dict[str, Any]:
         """Get current portfolio information"""
