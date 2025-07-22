@@ -1,16 +1,13 @@
-# 🤖 Agent Trading System
+# 🤖 Physics-Enhanced Agent Trading System
 
-Next-generation cryptocurrency trading platform powered by **CrewAI Intelligence** and **ADK Execution**, with comprehensive logging and GCP DevOps integration patterns.
+AI-powered cryptocurrency trading with physics-based risk analysis, CrewAI intelligence, and real-time dashboard.
 
 ## 🎯 Philosophy: Probabilistic Quantitative Trading
 
-This system abandons the flawed premise of "predicting exact prices" and instead focuses on:
-
-- **Probability Distributions**: Model price ranges and uncertainty
-- **Statistical Arbitrage**: Exploit mean reversion and cointegration
-- **Risk-Adjusted Returns**: Optimize Sharpe ratios, not raw returns
-- **Bayesian Inference**: Continuously update beliefs with new data
-- **Regime Detection**: Adapt strategies to market conditions
+Focus on probability distributions and risk-adjusted returns rather than price prediction:
+- **Statistical Arbitrage** with mean reversion and regime detection
+- **Bayesian Inference** for continuous model updates  
+- **Physics-Based Risk Models** using entropy, Hurst exponents, and chaos analysis
 
 ## 🏗️ Architecture Overview
 
