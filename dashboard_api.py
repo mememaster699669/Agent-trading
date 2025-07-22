@@ -598,6 +598,97 @@ class DashboardDataProvider:
         
         return logs[-limit:] if logs else []
 
+    def get_physics_risk_metrics(self) -> Dict[str, Any]:
+        """Get physics-based risk metrics following @khemkapital methodology"""
+        try:
+            # Try to read from latest decision file which should include physics metrics
+            physics_data = self._read_physics_risk_from_files()
+            
+            if physics_data:
+                return physics_data
+            
+            # Fallback to default physics risk structure
+            return {
+                "entropy_analysis": {
+                    "entropy": 0.5,
+                    "risk_level": "medium",
+                    "readability": "moderate",
+                    "information_flow_quality": 0.5
+                },
+                "memory_analysis": {
+                    "hurst_exponent": 0.5,
+                    "memory_type": "random_walk",
+                    "trauma_detected": False,
+                    "trauma_intensity": 0.0,
+                    "persistence_strength": 0.0
+                },
+                "instability_analysis": {
+                    "lyapunov_exponent": 0.0,
+                    "instability_score": 0.1,
+                    "instability_level": "low",
+                    "systemic_risk": "low",
+                    "shock_amplification_factor": 1.0,
+                    "chaos_detected": False
+                },
+                "regime_analysis": {
+                    "regime": "stable_trending",
+                    "stability": "moderate",
+                    "transition_probability": 0.1,
+                    "physics_metrics": {
+                        "entropy_score": 0.5,
+                        "memory_deviation": 0.0,
+                        "instability_score": 0.1
+                    }
+                },
+                "combined_physics_risk_score": 0.3,
+                "risk_amplification_factor": 1.15,
+                "last_updated": datetime.now().isoformat(),
+                "source": "default"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting physics risk metrics: {e}")
+            return {
+                "error": str(e),
+                "last_updated": datetime.now().isoformat(),
+                "source": "error"
+            }
+    
+    def _read_physics_risk_from_files(self) -> Dict[str, Any]:
+        """Read physics risk metrics from latest decision or separate physics file"""
+        try:
+            # First try to read from latest decision file
+            latest_decision_file = self.data_dir / "latest_decision.json"
+            
+            if latest_decision_file.exists():
+                with open(latest_decision_file, 'r') as f:
+                    decision_data = json.load(f)
+                    
+                    # Check if decision contains physics risk data
+                    risk_assessment = decision_data.get('risk_assessment', {})
+                    physics_risk = risk_assessment.get('physics_based_risk', {})
+                    
+                    if physics_risk:
+                        physics_risk['last_updated'] = decision_data.get('timestamp', datetime.now().isoformat())
+                        physics_risk['source'] = 'decision_file'
+                        return physics_risk
+            
+            # Try to read from dedicated physics risk file
+            physics_file = self.data_dir / "physics_risk.json"
+            
+            if physics_file.exists():
+                with open(physics_file, 'r') as f:
+                    physics_data = json.load(f)
+                    physics_data['source'] = 'physics_file'
+                    return physics_data
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error reading physics risk from files: {e}")
+            return None
+
+
 # Initialize data provider
 data_provider = DashboardDataProvider()
 
@@ -643,12 +734,18 @@ def get_all_dashboard_data():
             "price": data_provider.get_btc_price_data(),
             "decision": data_provider.get_latest_decision(),
             "performance": data_provider.get_performance_metrics(),
+            "physics_risk": data_provider.get_physics_risk_metrics(),
             "logs": data_provider.get_recent_logs(10)
         }
         return jsonify(dashboard_data)
     except Exception as e:
         print(f"Error getting dashboard data: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/physics-risk')
+def get_physics_risk():
+    """Get physics-based risk metrics"""
+    return jsonify(data_provider.get_physics_risk_metrics())
 
 @app.route('/api/health')
 def health_check():

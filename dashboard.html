@@ -343,6 +343,36 @@
                     <div>Max Drawdown: <span id="maxDrawdown">--%</span></div>
                 </div>
             </div>
+
+            <!-- Physics Risk Analysis Card -->
+            <div class="metric-card" style="grid-column: span 2;">
+                <div class="metric-title">🔬 Physics-Based Risk Analysis</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                    <div>
+                        <div class="metric-subtitle" style="color: #ffcc80;">Information Entropy</div>
+                        <div class="metric-value" style="font-size: 1.5rem;" id="entropyRisk">--.--</div>
+                        <div class="metric-subtitle">Market Uncertainty</div>
+                    </div>
+                    <div>
+                        <div class="metric-subtitle" style="color: #81c784;">Hurst Exponent</div>
+                        <div class="metric-value" style="font-size: 1.5rem;" id="hurstExponent">--.--</div>
+                        <div class="metric-subtitle">Memory/Trauma Detection</div>
+                    </div>
+                    <div>
+                        <div class="metric-subtitle" style="color: #e57373;">Lyapunov Instability</div>
+                        <div class="metric-value" style="font-size: 1.5rem;" id="lyapunovInstability">--.--</div>
+                        <div class="metric-subtitle">System Chaos Level</div>
+                    </div>
+                    <div>
+                        <div class="metric-subtitle" style="color: #ba68c8;">Regime Transition</div>
+                        <div class="metric-value" style="font-size: 1.5rem;" id="regimeTransition">--.--</div>
+                        <div class="metric-subtitle">Market State Change</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <div class="metric-subtitle">Physics Risk Summary: <span id="physicsRiskSummary" style="font-weight: bold;">Analyzing...</span></div>
+                </div>
+            </div>
         </div>
 
         <!-- Logs Section -->
@@ -382,7 +412,15 @@
             riskLevel: 'LOW',
             var: 0,
             maxDrawdown: 0,
-            logs: []
+            logs: [],
+            // Physics-based risk metrics
+            physicsRisk: {
+                entropyRisk: 0,
+                hurstExponent: 0.5,
+                lyapunovInstability: 0,
+                regimeTransition: 0,
+                riskSummary: 'Normal'
+            }
         };
 
         let startTime = Date.now();
@@ -404,7 +442,7 @@
 
         // Fetch all dashboard data from API
         function fetchDashboardData() {
-            // Use relative URL for Docker deployment
+            // Fetch main dashboard data
             fetch('/api/dashboard')
                 .then(response => response.json())
                 .then(data => {
@@ -435,6 +473,9 @@
                         // Logs
                         logs: data.logs || [],
                         
+                        // Physics risk (will be updated separately)
+                        physicsRisk: dashboardData.physicsRisk,
+                        
                         // Data source info
                         dataSource: {
                             price: data.price?.source || 'unknown',
@@ -451,6 +492,26 @@
                     addErrorLog('Failed to fetch dashboard data from API');
                     // Fall back to mock data if API fails
                     loadMockData();
+                });
+
+            // Fetch physics risk data separately
+            fetch('/api/physics-risk')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        dashboardData.physicsRisk = {
+                            entropyRisk: data.entropy_risk || 0,
+                            hurstExponent: data.hurst_exponent || 0.5,
+                            lyapunovInstability: data.lyapunov_instability || 0,
+                            regimeTransition: data.regime_transition_probability || 0,
+                            riskSummary: data.risk_summary || 'Normal'
+                        };
+                        updatePhysicsDisplay();
+                    }
+                })
+                .catch(error => {
+                    console.log('Physics risk data not available, using defaults');
+                    // Keep default physics risk values
                 });
         }
 
@@ -473,7 +534,14 @@
                 logs: [
                     { type: 'warning', message: 'Using mock data - API not available', timestamp: new Date() },
                     { type: 'info', message: 'Dashboard initialized with fallback data', timestamp: new Date() }
-                ]
+                ],
+                physicsRisk: {
+                    entropyRisk: 0.65,
+                    hurstExponent: 0.47,
+                    lyapunovInstability: 0.23,
+                    regimeTransition: 0.15,
+                    riskSummary: 'Moderate Risk - Market showing signs of instability'
+                }
             };
             updateDashboard();
         }
@@ -537,10 +605,47 @@
             document.getElementById('var').textContent = dashboardData.var.toLocaleString();
             document.getElementById('maxDrawdown').textContent = `${dashboardData.maxDrawdown}%`;
 
+            // Update physics display
+            updatePhysicsDisplay();
+
             // Update logs
             updateLogs();
             updateLastUpdateTime();
             updateDataSourceIndicator();
+        }
+
+        // Update physics-based risk display
+        function updatePhysicsDisplay() {
+            const physics = dashboardData.physicsRisk;
+            
+            // Update entropy risk (0-1 scale, higher = more uncertain)
+            document.getElementById('entropyRisk').textContent = physics.entropyRisk.toFixed(3);
+            
+            // Update Hurst exponent (0-1 scale, <0.5 = mean reverting, >0.5 = trending)
+            document.getElementById('hurstExponent').textContent = physics.hurstExponent.toFixed(3);
+            
+            // Update Lyapunov instability (higher = more chaotic)
+            document.getElementById('lyapunovInstability').textContent = physics.lyapunovInstability.toFixed(3);
+            
+            // Update regime transition probability (0-1 scale)
+            document.getElementById('regimeTransition').textContent = physics.regimeTransition.toFixed(3);
+            
+            // Update risk summary
+            document.getElementById('physicsRiskSummary').textContent = physics.riskSummary;
+            
+            // Color-code the summary based on risk level
+            const summaryEl = document.getElementById('physicsRiskSummary');
+            if (physics.riskSummary.toLowerCase().includes('high') || 
+                physics.riskSummary.toLowerCase().includes('critical') ||
+                physics.lyapunovInstability > 0.5) {
+                summaryEl.style.color = '#f44336'; // Red
+            } else if (physics.riskSummary.toLowerCase().includes('moderate') || 
+                       physics.entropyRisk > 0.7 || 
+                       physics.regimeTransition > 0.3) {
+                summaryEl.style.color = '#ff9800'; // Orange
+            } else {
+                summaryEl.style.color = '#4CAF50'; // Green
+            }
         }
 
         // Update logs display

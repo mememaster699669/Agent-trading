@@ -29,8 +29,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     APP_ENV=production
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Create non-root user with home directory
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -52,9 +52,10 @@ COPY requirements.txt ./requirements.txt
 COPY .env* ./
 RUN if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs /app/models && \
-    chown -R appuser:appuser /app
+# Create necessary directories and set proper permissions
+RUN mkdir -p /app/data /app/logs /app/models /home/appuser && \
+    chown -R appuser:appuser /app /home/appuser && \
+    chmod 755 /home/appuser
 
 # Switch to non-root user
 USER appuser

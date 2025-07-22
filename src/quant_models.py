@@ -13,6 +13,9 @@ from scipy.optimize import minimize
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional, Union
 import warnings
+from scipy.spatial.distance import pdist
+from scipy.stats import entropy
+import warnings
 warnings.filterwarnings('ignore')
 
 @dataclass
@@ -425,6 +428,430 @@ class RiskMetrics:
             'recovery_time': recovery_time,
             'current_drawdown': drawdown[-1],
             'drawdown_series': drawdown
+        }
+
+
+class AdvancedPhysicsModels:
+    """
+    @khemkapital-inspired physics-based market analysis
+    Implementation of Information Theory, Fractal Memory, and Instability Detection
+    """
+    
+    @staticmethod
+    def information_entropy_risk(price_data: np.ndarray, 
+                               volume_data: Optional[np.ndarray] = None,
+                               bins: int = 20) -> Dict[str, float]:
+        """
+        Calculate market information entropy to measure system readability
+        
+        High entropy = Market is unreadable, chaotic, high risk
+        Low entropy = Market is readable, structured, lower immediate risk
+        
+        Args:
+            price_data: Price time series
+            volume_data: Optional volume data for enhanced analysis
+            bins: Number of bins for entropy calculation
+            
+        Returns:
+            Dictionary with entropy metrics and risk assessment
+        """
+        if len(price_data) < 20:
+            return {'entropy': 0.5, 'risk_level': 'medium', 'readability': 0.5}
+        
+        # Calculate returns
+        returns = np.diff(np.log(price_data))
+        
+        # 1. Return Distribution Entropy
+        hist, bin_edges = np.histogram(returns, bins=bins, density=True)
+        hist = hist + 1e-8  # Avoid log(0)
+        hist = hist / np.sum(hist)  # Normalize
+        return_entropy = -np.sum(hist * np.log2(hist))
+        
+        # 2. Price Change Pattern Entropy
+        price_changes = np.diff(price_data)
+        price_directions = np.sign(price_changes)
+        
+        # Calculate entropy of direction sequences (local patterns)
+        direction_patterns = []
+        pattern_length = min(3, len(price_directions) // 10)
+        
+        for i in range(len(price_directions) - pattern_length + 1):
+            pattern = tuple(price_directions[i:i + pattern_length])
+            direction_patterns.append(pattern)
+        
+        # Count pattern frequencies
+        pattern_counts = {}
+        for pattern in direction_patterns:
+            pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
+        
+        # Calculate pattern entropy
+        total_patterns = len(direction_patterns)
+        if total_patterns > 0:
+            pattern_probs = np.array(list(pattern_counts.values())) / total_patterns
+            pattern_entropy = -np.sum(pattern_probs * np.log2(pattern_probs + 1e-8))
+        else:
+            pattern_entropy = 0.0
+        
+        # 3. Volume-weighted entropy (if volume data available)
+        volume_entropy = 0.0
+        if volume_data is not None and len(volume_data) == len(price_data):
+            volume_changes = np.diff(volume_data)
+            volume_hist, _ = np.histogram(volume_changes, bins=bins, density=True)
+            volume_hist = volume_hist + 1e-8
+            volume_hist = volume_hist / np.sum(volume_hist)
+            volume_entropy = -np.sum(volume_hist * np.log2(volume_hist))
+        
+        # Combined entropy measure
+        combined_entropy = (return_entropy + pattern_entropy + volume_entropy) / 3.0
+        
+        # Normalize to [0, 1] range (log2 of bins gives theoretical max)
+        max_entropy = np.log2(bins)
+        normalized_entropy = min(combined_entropy / max_entropy, 1.0)
+        
+        # Risk assessment based on entropy
+        if normalized_entropy > 0.8:
+            risk_level = 'extreme'
+            readability = 'unreadable'
+        elif normalized_entropy > 0.6:
+            risk_level = 'high'
+            readability = 'poor'
+        elif normalized_entropy > 0.4:
+            risk_level = 'medium'
+            readability = 'moderate'
+        else:
+            risk_level = 'low'
+            readability = 'good'
+        
+        return {
+            'entropy': normalized_entropy,
+            'return_entropy': return_entropy / max_entropy,
+            'pattern_entropy': pattern_entropy / max_entropy,
+            'volume_entropy': volume_entropy / max_entropy,
+            'risk_level': risk_level,
+            'readability': readability,
+            'information_flow_quality': 1.0 - normalized_entropy  # Higher is better
+        }
+    
+    @staticmethod
+    def hurst_exponent_memory(price_data: np.ndarray, 
+                            max_lag: Optional[int] = None) -> Dict[str, float]:
+        """
+        Calculate Hurst exponent to detect fractal memory and traumatic events
+        
+        H > 0.5: Persistent memory (trending, traumatic events embedded)
+        H = 0.5: Random walk (no memory)
+        H < 0.5: Anti-persistent (mean reverting)
+        
+        Args:
+            price_data: Price time series
+            max_lag: Maximum lag for R/S analysis
+            
+        Returns:
+            Dictionary with Hurst exponent and memory characteristics
+        """
+        if len(price_data) < 50:
+            return {'hurst_exponent': 0.5, 'memory_type': 'insufficient_data', 'trauma_detected': False}
+        
+        # Calculate log returns
+        log_prices = np.log(price_data)
+        returns = np.diff(log_prices)
+        
+        # R/S Analysis (Rescaled Range)
+        n = len(returns)
+        max_lag = max_lag or min(n // 4, 100)
+        
+        lags = np.logspace(1, np.log10(max_lag), num=10, dtype=int)
+        lags = np.unique(lags)
+        lags = lags[lags < n]
+        
+        rs_values = []
+        
+        for lag in lags:
+            # Split the series into non-overlapping windows
+            num_windows = n // lag
+            if num_windows < 2:
+                continue
+                
+            rs_window = []
+            
+            for i in range(num_windows):
+                window_returns = returns[i*lag:(i+1)*lag]
+                
+                # Calculate mean-adjusted cumulative sum
+                mean_return = np.mean(window_returns)
+                deviations = window_returns - mean_return
+                cumulative_deviations = np.cumsum(deviations)
+                
+                # Range
+                R = np.max(cumulative_deviations) - np.min(cumulative_deviations)
+                
+                # Standard deviation
+                S = np.std(window_returns, ddof=1)
+                
+                # R/S ratio
+                if S > 0:
+                    rs_window.append(R / S)
+            
+            if rs_window:
+                rs_values.append(np.mean(rs_window))
+        
+        if len(rs_values) < 3:
+            return {'hurst_exponent': 0.5, 'memory_type': 'insufficient_data', 'trauma_detected': False}
+        
+        # Calculate Hurst exponent using linear regression
+        # log(R/S) = H * log(n) + constant
+        log_lags = np.log(lags[:len(rs_values)])
+        log_rs = np.log(rs_values)
+        
+        # Linear regression
+        slope, intercept, r_value, p_value, std_err = stats.linregress(log_lags, log_rs)
+        hurst_exponent = slope
+        
+        # Classify memory type
+        if hurst_exponent > 0.6:
+            memory_type = 'strong_persistence'
+            trauma_detected = True
+        elif hurst_exponent > 0.55:
+            memory_type = 'moderate_persistence'
+            trauma_detected = True
+        elif hurst_exponent < 0.4:
+            memory_type = 'anti_persistent'
+            trauma_detected = False
+        elif hurst_exponent < 0.45:
+            memory_type = 'weak_anti_persistent'
+            trauma_detected = False
+        else:
+            memory_type = 'random_walk'
+            trauma_detected = False
+        
+        # Additional trauma detection using volatility clustering
+        volatility = pd.Series(returns).rolling(window=10).std()
+        volatility_changes = np.diff(volatility.dropna())
+        extreme_vol_events = np.sum(np.abs(volatility_changes) > 2 * np.std(volatility_changes))
+        
+        trauma_intensity = min(extreme_vol_events / len(volatility_changes), 1.0) if len(volatility_changes) > 0 else 0
+        
+        return {
+            'hurst_exponent': hurst_exponent,
+            'memory_type': memory_type,
+            'trauma_detected': trauma_detected,
+            'trauma_intensity': trauma_intensity,
+            'persistence_strength': abs(hurst_exponent - 0.5),
+            'r_squared': r_value**2,
+            'statistical_significance': 1 - p_value if p_value < 0.05 else 0
+        }
+    
+    @staticmethod
+    def lyapunov_instability_detection(price_data: np.ndarray, 
+                                     embedding_dim: int = 3,
+                                     time_delay: int = 1) -> Dict[str, float]:
+        """
+        Calculate Lyapunov exponent to measure system instability propagation
+        
+        Positive Lyapunov: System amplifies small shocks (chaotic/unstable)
+        Zero Lyapunov: System at critical stability threshold
+        Negative Lyapunov: System dampens shocks (stable)
+        
+        Args:
+            price_data: Price time series
+            embedding_dim: Embedding dimension for phase space reconstruction
+            time_delay: Time delay for embedding
+            
+        Returns:
+            Dictionary with instability metrics and risk assessment
+        """
+        if len(price_data) < 100:
+            return {'lyapunov_exponent': 0.0, 'instability_level': 'insufficient_data'}
+        
+        # Convert to log returns for analysis
+        log_prices = np.log(price_data)
+        returns = np.diff(log_prices)
+        
+        # Phase space reconstruction using time delay embedding
+        def reconstruct_phase_space(data, m, tau):
+            n = len(data)
+            reconstructed = np.zeros((n - (m-1)*tau, m))
+            
+            for i in range(m):
+                reconstructed[:, i] = data[i*tau:n - (m-1-i)*tau]
+            
+            return reconstructed
+        
+        # Reconstruct phase space
+        try:
+            phase_space = reconstruct_phase_space(returns, embedding_dim, time_delay)
+        except:
+            return {'lyapunov_exponent': 0.0, 'instability_level': 'reconstruction_failed'}
+        
+        if len(phase_space) < 20:
+            return {'lyapunov_exponent': 0.0, 'instability_level': 'insufficient_data'}
+        
+        # Calculate largest Lyapunov exponent using Rosenstein's method
+        def lyapunov_rosenstein(trajectories, max_iter=None):
+            n_points, n_dim = trajectories.shape
+            max_iter = max_iter or min(n_points // 10, 50)
+            
+            # Find nearest neighbors
+            divergence_rates = []
+            
+            for i in range(n_points - max_iter):
+                reference = trajectories[i]
+                
+                # Find nearest neighbor
+                distances = np.linalg.norm(trajectories[i+1:] - reference, axis=1)
+                
+                if len(distances) == 0:
+                    continue
+                    
+                nearest_idx = np.argmin(distances) + i + 1
+                
+                if nearest_idx >= n_points - max_iter:
+                    continue
+                
+                # Track divergence over time
+                divergences = []
+                for j in range(1, min(max_iter, n_points - max(i, nearest_idx))):
+                    if i + j >= n_points or nearest_idx + j >= n_points:
+                        break
+                        
+                    current_distance = np.linalg.norm(
+                        trajectories[i + j] - trajectories[nearest_idx + j]
+                    )
+                    
+                    if current_distance > 0:
+                        divergences.append(np.log(current_distance))
+                
+                if len(divergences) > 5:  # Need enough points for slope
+                    time_steps = np.arange(len(divergences))
+                    slope, _, _, _, _ = stats.linregress(time_steps, divergences)
+                    divergence_rates.append(slope)
+            
+            return np.mean(divergence_rates) if divergence_rates else 0.0
+        
+        # Calculate Lyapunov exponent
+        lyapunov_exp = lyapunov_rosenstein(phase_space)
+        
+        # Alternative: Simple correlation-based instability measure
+        # Check how small changes propagate through the system
+        correlation_instability = 0.0
+        if len(returns) > 20:
+            # Measure how much current return depends on previous returns
+            autocorr_lags = min(10, len(returns) // 4)
+            autocorrelations = [np.corrcoef(returns[:-lag], returns[lag:])[0,1] 
+                              for lag in range(1, autocorr_lags + 1)]
+            autocorrelations = [corr for corr in autocorrelations if not np.isnan(corr)]
+            
+            if autocorrelations:
+                # High positive autocorrelation at short lags indicates instability
+                correlation_instability = np.mean(np.abs(autocorrelations[:3]))
+        
+        # Combined instability measure
+        instability_score = (abs(lyapunov_exp) + correlation_instability) / 2.0
+        
+        # Classify instability level
+        if instability_score > 0.3:
+            instability_level = 'extreme'
+            systemic_risk = 'high'
+        elif instability_score > 0.15:
+            instability_level = 'high'
+            systemic_risk = 'elevated'
+        elif instability_score > 0.05:
+            instability_level = 'moderate'
+            systemic_risk = 'medium'
+        else:
+            instability_level = 'low'
+            systemic_risk = 'low'
+        
+        # Shock amplification factor
+        shock_amplification = max(1.0, 1.0 + instability_score * 2.0)
+        
+        return {
+            'lyapunov_exponent': lyapunov_exp,
+            'instability_score': instability_score,
+            'instability_level': instability_level,
+            'systemic_risk': systemic_risk,
+            'shock_amplification_factor': shock_amplification,
+            'correlation_instability': correlation_instability,
+            'chaos_detected': lyapunov_exp > 0.01  # Positive Lyapunov indicates chaos
+        }
+    
+    @staticmethod
+    def regime_transition_detection(price_data: np.ndarray,
+                                  volume_data: Optional[np.ndarray] = None,
+                                  lookback: int = 50) -> Dict[str, any]:
+        """
+        Detect market regime transitions using physics-based indicators
+        Combines entropy, memory, and instability for regime classification
+        
+        Args:
+            price_data: Price time series
+            volume_data: Optional volume data
+            lookback: Lookback period for analysis
+            
+        Returns:
+            Dictionary with regime analysis and transition probabilities
+        """
+        if len(price_data) < lookback:
+            return {'regime': 'insufficient_data', 'transition_probability': 0.0}
+        
+        recent_data = price_data[-lookback:]
+        recent_volume = volume_data[-lookback:] if volume_data is not None else None
+        
+        # Calculate physics-based metrics
+        entropy_metrics = AdvancedPhysicsModels.information_entropy_risk(recent_data, recent_volume)
+        memory_metrics = AdvancedPhysicsModels.hurst_exponent_memory(recent_data)
+        instability_metrics = AdvancedPhysicsModels.lyapunov_instability_detection(recent_data)
+        
+        # Regime classification based on combined metrics
+        entropy_score = entropy_metrics['entropy']
+        memory_score = memory_metrics['hurst_exponent'] - 0.5  # Deviation from random walk
+        instability_score = instability_metrics['instability_score']
+        
+        # Physics-based regime states
+        if entropy_score > 0.7 and instability_score > 0.2:
+            regime = 'chaos'  # High entropy + high instability = chaotic regime
+            stability = 'very_unstable'
+        elif memory_score > 0.15 and instability_score > 0.1:
+            regime = 'trending_unstable'  # Strong memory + moderate instability
+            stability = 'unstable'
+        elif memory_score < -0.1:
+            regime = 'mean_reverting'  # Anti-persistent behavior
+            stability = 'stable'
+        elif entropy_score < 0.3 and instability_score < 0.05:
+            regime = 'stable_trending'  # Low entropy + low instability
+            stability = 'very_stable'
+        else:
+            regime = 'transitional'  # Mixed signals
+            stability = 'moderate'
+        
+        # Calculate transition probability based on rate of change in metrics
+        if len(price_data) > lookback * 2:
+            # Compare current metrics to previous period
+            prev_data = price_data[-lookback*2:-lookback]
+            prev_entropy = AdvancedPhysicsModels.information_entropy_risk(prev_data)['entropy']
+            prev_memory = AdvancedPhysicsModels.hurst_exponent_memory(prev_data)['hurst_exponent']
+            
+            entropy_change = abs(entropy_score - prev_entropy)
+            memory_change = abs(memory_score - (prev_memory - 0.5))
+            
+            transition_probability = min((entropy_change + memory_change) / 2.0, 1.0)
+        else:
+            transition_probability = 0.5  # Default uncertainty
+        
+        return {
+            'regime': regime,
+            'stability': stability,
+            'transition_probability': transition_probability,
+            'physics_metrics': {
+                'entropy_score': entropy_score,
+                'memory_deviation': memory_score,
+                'instability_score': instability_score
+            },
+            'risk_assessment': {
+                'information_risk': entropy_metrics['risk_level'],
+                'memory_risk': 'high' if abs(memory_score) > 0.1 else 'low',
+                'systemic_risk': instability_metrics['systemic_risk']
+            }
         }
 
 
