@@ -17,7 +17,7 @@ from .environment import validate_environment, get_environment_summary
 from .logging_system import setup_agent_logging, get_logger
 from .dataset import BTCDataManager
 from .crewai_intelligence import CrewAIIntelligenceSystem
-from .adk_execution import ADKExecutionEngine
+from .adk_execution import ExecutionLayer
 
 # Setup logging first thing
 loggers = setup_agent_logging()
@@ -141,8 +141,8 @@ class AgentTradingSystem:
                 status="started"
             )
             
-            from .adk_execution import ADKExecutionEngine
-            self.execution_engine = ADKExecutionEngine(self.config)
+            from .adk_execution import ExecutionLayer
+            self.execution_engine = ExecutionLayer(self.config)
             
             adk_logger.log_action(
                 "adk_init",
@@ -153,7 +153,7 @@ class AgentTradingSystem:
             main_logger.log_action(
                 "system_initialization",
                 {
-                    "components": ["BTCDataManager", "CrewAIIntelligenceSystem", "ADKExecutionEngine"],
+                    "components": ["BTCDataManager", "CrewAIIntelligenceSystem", "ExecutionLayer"],
                     "description": "All components initialized successfully"
                 },
                 status="completed"

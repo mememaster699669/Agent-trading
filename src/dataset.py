@@ -22,7 +22,7 @@ import redis
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
-from .config import Config
+from .config import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class BinanceDataCollector:
     Binance API integration for BTC data collection
     """
     
-    def __init__(self, config: Config):
+    def __init__(self, config: ConfigManager):
         self.config = config
         self.symbol = "BTC/USDT"
         self.timeframe = "15m"
@@ -398,7 +398,7 @@ class DatabaseManager:
     PostgreSQL database integration for data storage
     """
     
-    def __init__(self, config: Config):
+    def __init__(self, config: ConfigManager):
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.DatabaseManager")
         
@@ -499,12 +499,64 @@ class BTCDataManager:
     Main BTC data management orchestrator
     """
     
-    def __init__(self, config: Config):
+    def __init__(self, config: ConfigManager):
         self.config = config
         self.collector = BinanceDataCollector(config)
         self.processor = DataProcessor()
         self.db_manager = DatabaseManager(config)
         self.logger = logging.getLogger(f"{__name__}.BTCDataManager")
+    
+    async def initialize(self):
+        """Initialize the BTC data manager"""
+        self.logger.info("BTCDataManager initialization completed")
+        return True
+    
+    async def fetch_latest_data(self) -> Dict[str, Any]:
+        """Fetch latest market data for trading"""
+        try:
+            # Fetch latest candles
+            candles = await self.collector.fetch_latest_candles(limit=50)
+            
+            if not candles:
+                return {
+                    'candles': [],
+                    'latest_price': 0,
+                    'timeframe': '15m',
+                    'symbol': 'BTCUSDT'
+                }
+            
+            # Convert to dict format
+            candles_data = []
+            for candle in candles:
+                candles_data.append({
+                    'timestamp': candle.timestamp.isoformat(),
+                    'open': candle.open,
+                    'high': candle.high,
+                    'low': candle.low,
+                    'close': candle.close,
+                    'volume': candle.volume
+                })
+            
+            return {
+                'candles': candles_data,
+                'latest_price': candles[-1].close,
+                'timeframe': '15m',
+                'symbol': 'BTCUSDT'
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to fetch latest data: {e}")
+            return {
+                'candles': [],
+                'latest_price': 0,
+                'timeframe': '15m',
+                'symbol': 'BTCUSDT'
+            }
+    
+    async def cleanup(self):
+        """Cleanup resources"""
+        self.logger.info("BTCDataManager cleanup completed")
+        return True
     
     async def update_btc_data(self) -> Dict[str, Any]:
         """
@@ -612,6 +664,6 @@ class BTCDataManager:
 
 
 # Main interface for other modules
-async def get_btc_data_manager(config: Config) -> BTCDataManager:
+async def get_btc_data_manager(config: ConfigManager) -> BTCDataManager:
     """Factory function to create BTC data manager"""
     return BTCDataManager(config)

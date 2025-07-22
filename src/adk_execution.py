@@ -525,22 +525,33 @@ class ExecutionLayer:
     Main execution layer orchestrating all ADK agents
     """
     
-    def __init__(self, config: Dict[str, Any] = None):
-        if config is None:
-            config = {}
+    def __init__(self, config):
+        """Initialize with ConfigManager object"""
+        self.config = config
         
-        # Initialize risk limits
+        # Initialize risk limits from ConfigManager
         risk_limits = RiskLimit(
-            max_position_size=config.get('max_position_size', 10000),
-            max_daily_loss=config.get('max_daily_loss', 5000),
-            max_portfolio_exposure=config.get('max_portfolio_exposure', 50000),
-            var_limit=config.get('var_limit', 2000),
-            concentration_limit=config.get('concentration_limit', 0.2)
+            max_position_size=config.risk.max_position_size,
+            max_daily_loss=config.risk.max_daily_loss,
+            max_portfolio_exposure=config.risk.max_portfolio_exposure,
+            var_limit=config.risk.var_limit,
+            concentration_limit=config.risk.concentration_limit
         )
         
         # Initialize agents
-        self.order_manager = OrderManagerAgent(config.get('broker', {}))
-        self.data_pipeline = DataPipelineAgent(config.get('data_sources', {}))
+        broker_config = {
+            'api_key': config.trading.broker_api_key,
+            'secret': config.trading.broker_secret,
+            'testnet': config.trading.broker_testnet
+        }
+        data_sources_config = {
+            'binance_api_key': config.data.binance_api_key,
+            'binance_secret': config.data.binance_secret,
+            'binance_testnet': config.data.binance_testnet
+        }
+        
+        self.order_manager = OrderManagerAgent(broker_config)
+        self.data_pipeline = DataPipelineAgent(data_sources_config)
         self.safety_guardian = SafetyGuardianAgent(risk_limits)
         self.monitor = MonitorAgent()
         
@@ -617,3 +628,43 @@ class ExecutionLayer:
             'breached_limits': self.safety_guardian.breached_limits,
             'timestamp': datetime.now()
         }
+    
+    async def process_signal(self, trading_signal: Dict[str, Any]) -> Dict[str, Any]:
+        """Process trading signal from intelligence system"""
+        try:
+            self.logger.info(f"Processing trading signal: {trading_signal.get('recommended_action', 'unknown')}")
+            
+            # Convert signal to trading decision format
+            trading_decision = {
+                'symbol': trading_signal.get('symbol', 'BTCUSDT'),
+                'signal_type': trading_signal.get('recommended_action', 'hold'),
+                'position_size': trading_signal.get('position_size_pct', 0.02),
+                'confidence': trading_signal.get('final_confidence', 0.7)
+            }
+            
+            # Execute only if we have a buy/sell signal
+            if trading_decision['signal_type'] in ['buy', 'sell', 'strong_buy', 'strong_sell']:
+                result = await self.execute_trading_decision(trading_decision)
+                result['executed'] = result.get('success', False)
+                result['action'] = trading_decision['signal_type']
+                return result
+            else:
+                self.logger.info(f"Signal '{trading_decision['signal_type']}' - no action taken")
+                return {
+                    'executed': False,
+                    'action': 'hold',
+                    'reason': f"Signal was '{trading_decision['signal_type']}' - no execution needed"
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Failed to process signal: {e}")
+            return {
+                'executed': False,
+                'action': 'error',
+                'error': str(e)
+            }
+    
+    async def cleanup(self):
+        """Cleanup execution layer resources"""
+        self.logger.info("ExecutionLayer cleanup completed")
+        return True

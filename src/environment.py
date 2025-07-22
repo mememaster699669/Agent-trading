@@ -38,6 +38,14 @@ llm_temperature = float(os.getenv("LLM_TEMPERATURE", "0.3"))
 # Model configuration for litellm compatibility
 MODEL_GPT_4O = llm_model
 
+# Models dictionary for CrewAI
+MODELS = {
+    "gpt-4": "gpt-4",
+    "gpt-4o": "gpt-4o", 
+    "gpt-3.5-turbo": "gpt-3.5-turbo",
+    "default": llm_model
+}
+
 # =============================================================================
 # Database Configuration
 # =============================================================================
@@ -92,6 +100,13 @@ concentration_limit = float(os.getenv("CONCENTRATION_LIMIT", "0.2"))
 app_env = os.getenv("APP_ENV", "development")
 container_name = os.getenv("CONTAINER_NAME", "agent-trading-app")
 network_name = os.getenv("NETWORK_NAME", "agent-trading-network")
+
+# =============================================================================
+# Environment Detection
+# =============================================================================
+def is_production() -> bool:
+    """Check if running in production environment"""
+    return app_env.lower() == "production"
 
 # =============================================================================
 # CrewAI Configuration

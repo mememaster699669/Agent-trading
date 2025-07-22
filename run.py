@@ -4,6 +4,8 @@ Agent Trading System - Main Entry Point
 Simple wrapper to start the main application
 """
 
+import asyncio
+
 if __name__ == "__main__":
     from src.main import main
-    main()
+    asyncio.run(main())

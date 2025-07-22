@@ -18,7 +18,7 @@ import litellm
 # Import our enhanced logging system
 from .logging_system import get_logger
 from .config import ConfigManager
-from .environment import MODELS, is_production
+from .environment import MODEL_GPT_4O, is_production
 
 # Import quantitative models for advanced analysis
 from .quant_models import (
