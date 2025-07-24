@@ -528,6 +528,7 @@ class ExecutionLayer:
     def __init__(self, config):
         """Initialize with ConfigManager object and advanced frameworks"""
         self.config = config
+        self.logger = get_logger("ADKExecution")
         
         # Initialize risk limits from ConfigManager
         risk_limits = RiskLimit(

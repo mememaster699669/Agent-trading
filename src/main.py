@@ -183,8 +183,17 @@ class AgentTradingSystem:
         
         main_logger.info("Validating environment configuration...")
         
-        env_issues = validate_environment()
+        validation_result = validate_environment()
+        env_issues = validation_result.get("errors", [])
+        env_warnings = validation_result.get("warnings", [])
         
+        # Log warnings
+        if env_warnings:
+            main_logger.warning("Environment warnings:")
+            for warning in env_warnings:
+                main_logger.warning(f"  - {warning}")
+        
+        # Check for errors
         if env_issues:
             main_logger.error("Environment validation failed:")
             for issue in env_issues:
@@ -202,10 +211,19 @@ class AgentTradingSystem:
             main_logger.info("Environment validation passed ✅")
         
         # Log environment summary
-        env_summary = get_environment_summary()
+        env_summary = validation_result.get("config_summary", {})
         main_logger.info("Environment Summary:")
         for key, value in env_summary.items():
             main_logger.info(f"  {key}: {value}")
+        
+        # Log advanced frameworks status
+        frameworks_status = validation_result.get("advanced_frameworks_status", {})
+        if frameworks_status.get("enabled_frameworks"):
+            main_logger.info(f"Advanced frameworks enabled: {', '.join(frameworks_status['enabled_frameworks'])}")
+        if frameworks_status.get("configuration_issues"):
+            main_logger.warning("Framework configuration issues:")
+            for issue in frameworks_status["configuration_issues"]:
+                main_logger.warning(f"  - {issue}")
     
     async def initialize_components(self):
         """Initialize all system components"""

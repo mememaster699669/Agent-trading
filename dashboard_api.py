@@ -27,10 +27,30 @@ import threading
 # Import the trading system components
 try:
     from src.logging_system import get_logger
+    LOGGING_AVAILABLE = True
+except ImportError:
+    LOGGING_AVAILABLE = False
+
+try:
     from src.main import AgentTradingSystem
+    MAIN_SYSTEM_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Could not import main trading system: {e}")
+    MAIN_SYSTEM_AVAILABLE = False
+
+try:
     from src.config import ConfigManager
+    CONFIG_AVAILABLE = True
+except ImportError:
+    CONFIG_AVAILABLE = False
+
+try:
     from src.environment import validate_environment
-    
+    ENVIRONMENT_AVAILABLE = True
+except ImportError:
+    ENVIRONMENT_AVAILABLE = False
+
+try:
     # Import all advanced 5-phase frameworks for dashboard
     from src.quant_models import (
         BayesianTradingFramework,
@@ -41,7 +61,6 @@ try:
         AdvancedPhysicsModels,
         MarketMicrostructure
     )
-    
     ADVANCED_FRAMEWORKS_AVAILABLE = True
     
 except ImportError as e:
@@ -111,13 +130,23 @@ class TradingSystemIntegration:
     def _initialize_trading_system(self):
         """Initialize connection to trading system"""
         try:
-            # Initialize config first
-            self.config = ConfigManager()
+            # Initialize config first if available
+            if CONFIG_AVAILABLE:
+                self.config = ConfigManager()
+                print("✅ ConfigManager initialized")
+            else:
+                print("⚠️ ConfigManager not available - using environment variables")
+                self.config = None
             
-            # Instead of creating a full trading system, just initialize data components
-            # This avoids permission issues and full system startup
-            self.system_health = "CONNECTED"
-            print("✅ Connected to Agent Trading System configuration")
+            # Try to connect to main trading system if available
+            if MAIN_SYSTEM_AVAILABLE:
+                # Instead of creating a full trading system, just initialize data components
+                # This avoids permission issues and full system startup
+                self.system_health = "CONNECTED"
+                print("✅ Connected to Agent Trading System configuration")
+            else:
+                print("⚠️ Main trading system not available - using file-based mode")
+                self.system_health = "FILE_BASED"
             
         except Exception as e:
             print(f"⚠️ Could not connect to trading system: {e}")

@@ -43,11 +43,19 @@ class RiskConfig:
 
 
 @dataclass
+@dataclass
 class TradingConfig:
     """Trading system configuration"""
     symbols: List[str] = None
     update_interval: int = 30
     min_validation_score: float = 0.7
+    
+    # Trading modes
+    enable_paper_trading: bool = True
+    enable_live_trading: bool = False
+    broker_api_key: Optional[str] = None
+    broker_secret: Optional[str] = None
+    broker_testnet: bool = True
     
     # Advanced frameworks configuration
     enable_bayesian: bool = True
@@ -135,11 +143,6 @@ class AdvancedFrameworksConfig:
         if self.microstructure_enabled:
             enabled.append("microstructure")
         return enabled
-    enable_paper_trading: bool = True
-    enable_live_trading: bool = False
-    broker_api_key: Optional[str] = None
-    broker_secret: Optional[str] = None
-    broker_testnet: bool = True
 
 
 @dataclass

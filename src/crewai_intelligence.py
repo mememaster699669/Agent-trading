@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Any, Optional
 from crewai import Agent, Task, Crew, Process
-from crewai.tools import BaseTool
 import litellm
 
 # Import our enhanced logging system

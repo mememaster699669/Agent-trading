@@ -106,8 +106,8 @@ class ProcessedFeatures:
     market_impact: Optional[float] = None
     
     # Quality metrics
-    data_quality: float
-    feature_confidence: float
+    data_quality: float = 0.0
+    feature_confidence: float = 0.0
     frameworks_applied: Optional[List[str]] = None
 
 
