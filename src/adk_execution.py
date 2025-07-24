@@ -522,11 +522,11 @@ class MonitorAgent:
 
 class ExecutionLayer:
     """
-    Main execution layer orchestrating all ADK agents
+    Main execution layer orchestrating all ADK agents - enhanced for advanced 5-phase frameworks
     """
     
     def __init__(self, config):
-        """Initialize with ConfigManager object"""
+        """Initialize with ConfigManager object and advanced frameworks"""
         self.config = config
         
         # Initialize risk limits from ConfigManager
@@ -555,16 +555,109 @@ class ExecutionLayer:
         self.safety_guardian = SafetyGuardianAgent(risk_limits)
         self.monitor = MonitorAgent()
         
+        # Advanced frameworks integration
+        self.advanced_frameworks = {}
+        self._initialize_advanced_frameworks()
+        
         self.logger = logging.getLogger(f"{__name__}.ExecutionLayer")
+    
+    def _initialize_advanced_frameworks(self):
+        """Initialize advanced frameworks for enhanced execution"""
+        try:
+            # Try to import and initialize advanced frameworks for execution
+            from .quant_models import (
+                AdvancedPortfolioOptimization,
+                AdvancedPhysicsModels,
+                AdvancedMLTradingFramework
+            )
+            
+            # Initialize frameworks that support execution decisions
+            if self.config.advanced_frameworks.portfolio_enabled:
+                self.advanced_frameworks['portfolio'] = AdvancedPortfolioOptimization()
+                
+            if self.config.advanced_frameworks.physics_enabled:
+                self.advanced_frameworks['physics'] = AdvancedPhysicsModels()
+                
+            if self.config.advanced_frameworks.ml_enabled:
+                self.advanced_frameworks['ml'] = AdvancedMLTradingFramework()
+            
+            self.logger.info(f"✅ Initialized {len(self.advanced_frameworks)} advanced frameworks for execution")
+            
+        except ImportError as e:
+            self.logger.warning(f"⚠️ Advanced frameworks not available for execution: {e}")
+            self.advanced_frameworks = {}
+    
+    def _calculate_advanced_position_size(self, trading_decision: Dict[str, Any], market_data: Dict[str, Any]) -> float:
+        """Calculate position size using advanced frameworks"""
+        base_size = abs(trading_decision.get('position_size', 0.1))
+        
+        try:
+            # Portfolio optimization sizing
+            if 'portfolio' in self.advanced_frameworks:
+                portfolio_framework = self.advanced_frameworks['portfolio']
+                
+                # Extract market information
+                current_price = market_data.get('latest_price', 50000)
+                advanced_features = market_data.get('advanced_features', {})
+                
+                # Get portfolio optimization recommendation
+                if 'portfolio' in advanced_features:
+                    portfolio_analysis = advanced_features['portfolio']
+                    optimal_weight = portfolio_analysis.get('optimal_weight', 0.1)
+                    base_size = optimal_weight
+            
+            # Physics-based risk adjustment
+            if 'physics' in self.advanced_frameworks and 'physics' in market_data.get('advanced_features', {}):
+                physics_analysis = market_data['advanced_features']['physics']
+                
+                # Get combined physics risk score
+                physics_risk = physics_analysis.get('combined_risk_score', 0.5)
+                risk_adjustment = 1.0 - (physics_risk * 0.5)  # Reduce size by up to 50% based on risk
+                base_size *= risk_adjustment
+                
+                self.logger.info(f"Physics risk adjustment: {risk_adjustment:.3f} (risk score: {physics_risk:.3f})")
+            
+            # ML confidence adjustment
+            if 'ml' in self.advanced_frameworks and 'ml' in market_data.get('advanced_features', {}):
+                ml_analysis = market_data['advanced_features']['ml']
+                
+                # Get ML confidence
+                ml_confidence = ml_analysis.get('confidence', 0.5)
+                confidence_adjustment = 0.5 + (ml_confidence * 0.5)  # Scale between 0.5x and 1.0x
+                base_size *= confidence_adjustment
+                
+                self.logger.info(f"ML confidence adjustment: {confidence_adjustment:.3f} (confidence: {ml_confidence:.3f})")
+            
+            # Apply config limits
+            max_size = self.config.risk.max_position_size / market_data.get('latest_price', 50000)
+            final_size = min(base_size, max_size)
+            
+            self.logger.info(f"Advanced position sizing: base={base_size:.4f}, final={final_size:.4f}")
+            return final_size
+            
+        except Exception as e:
+            self.logger.error(f"Error in advanced position sizing: {e}")
+            return base_size
     
     async def execute_trading_decision(self, trading_decision: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute a trading decision through the complete ADK pipeline
+        Execute a trading decision through the complete ADK pipeline with advanced frameworks
         """
         try:
             symbol = trading_decision['symbol']
             side = trading_decision['signal_type']
-            quantity = abs(trading_decision['position_size']) * 1000  # Convert to shares
+            
+            # Get market data for advanced position sizing
+            market_data = trading_decision.get('market_data', {})
+            
+            # Calculate position size using advanced frameworks
+            if self.advanced_frameworks and market_data:
+                optimal_size = self._calculate_advanced_position_size(trading_decision, market_data)
+                quantity = optimal_size * 1000  # Convert to shares
+                self.logger.info(f"Using advanced position sizing: {optimal_size:.4f} ({quantity:.0f} shares)")
+            else:
+                quantity = abs(trading_decision['position_size']) * 1000  # Fallback to basic sizing
+                self.logger.info(f"Using basic position sizing: {quantity:.0f} shares")
             
             # Create order
             order = Order(
@@ -575,16 +668,18 @@ class ExecutionLayer:
                 order_type='market'
             )
             
-            # Pre-trade risk check
+            # Enhanced pre-trade risk check with advanced features
+            portfolio_value = market_data.get('latest_price', 50000) * quantity
             risk_check = self.safety_guardian.check_pre_trade_risk(
-                order, {'total_value': 100000}  # Mock portfolio
+                order, {'total_value': 100000, 'advanced_features': market_data.get('advanced_features', {})}
             )
             
             if not risk_check['approved']:
                 return {
                     'success': False,
                     'error': 'Risk check failed',
-                    'failed_checks': risk_check['failed_checks']
+                    'failed_checks': risk_check['failed_checks'],
+                    'advanced_risk_factors': risk_check.get('advanced_risk_factors', {})
                 }
             
             # Execute order

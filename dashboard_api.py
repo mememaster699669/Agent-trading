@@ -13,6 +13,14 @@ import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
+
+# Try to import numpy for advanced analytics
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    np = None
 from typing import Dict, Any, List
 import threading
 
@@ -22,9 +30,24 @@ try:
     from src.main import AgentTradingSystem
     from src.config import ConfigManager
     from src.environment import validate_environment
+    
+    # Import all advanced 5-phase frameworks for dashboard
+    from src.quant_models import (
+        BayesianTradingFramework,
+        QuantLibFinancialEngineering,
+        AdvancedPortfolioOptimization,
+        AdvancedTimeSeriesAnalysis,
+        AdvancedMLTradingFramework,
+        AdvancedPhysicsModels,
+        MarketMicrostructure
+    )
+    
+    ADVANCED_FRAMEWORKS_AVAILABLE = True
+    
 except ImportError as e:
     print(f"Warning: Could not import trading system components: {e}")
     print("Running in standalone mode with file-based data only")
+    ADVANCED_FRAMEWORKS_AVAILABLE = False
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for dashboard access
@@ -42,8 +65,48 @@ class TradingSystemIntegration:
         self.system_health = "INITIALIZING"
         self.start_time = time.time()
         
-        # Try to initialize trading system
+        # Initialize all advanced 5-phase frameworks for dashboard
+        self.advanced_frameworks = {}
+        self.framework_status = {}
+        
+        # Try to initialize trading system and frameworks
         self._initialize_trading_system()
+        self._initialize_advanced_frameworks()
+    
+    def _initialize_advanced_frameworks(self):
+        """Initialize all advanced 5-phase frameworks for dashboard analytics"""
+        if not ADVANCED_FRAMEWORKS_AVAILABLE:
+            print("⚠️ Advanced frameworks not available - using fallback data")
+            return
+        
+        try:
+            # Phase 1: Bayesian Framework
+            self.advanced_frameworks['bayesian'] = BayesianTradingFramework()
+            self.framework_status['bayesian'] = self.advanced_frameworks['bayesian'].is_available
+            
+            # Phase 2: QuantLib Framework
+            self.advanced_frameworks['quantlib'] = QuantLibFinancialEngineering()
+            self.framework_status['quantlib'] = self.advanced_frameworks['quantlib'].is_available
+            
+            # Phase 3: Portfolio Optimization Framework
+            self.advanced_frameworks['portfolio'] = AdvancedPortfolioOptimization()
+            self.framework_status['portfolio'] = self.advanced_frameworks['portfolio'].is_available
+            
+            # Phase 4: Time Series Framework
+            self.advanced_frameworks['timeseries'] = AdvancedTimeSeriesAnalysis()
+            self.framework_status['timeseries'] = self.advanced_frameworks['timeseries'].is_available
+            
+            # Phase 5: ML Framework
+            self.advanced_frameworks['ml'] = AdvancedMLTradingFramework()
+            self.framework_status['ml'] = self.advanced_frameworks['ml'].is_available
+            
+            print("✅ Advanced 5-phase frameworks initialized for dashboard")
+            print(f"Framework availability: {self.framework_status}")
+            
+        except Exception as e:
+            print(f"⚠️ Could not initialize advanced frameworks: {e}")
+            self.advanced_frameworks = {}
+            self.framework_status = {}
     
     def _initialize_trading_system(self):
         """Initialize connection to trading system"""
@@ -750,11 +813,250 @@ def get_physics_risk():
 @app.route('/api/health')
 def health_check():
     """Simple health check endpoint"""
+    uptime = int(time.time() - data_provider.start_time) if hasattr(data_provider, 'start_time') else 0
+    
+    # Include framework status if available
+    framework_status = getattr(data_provider.trading_integration, 'framework_status', {})
+    
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "uptime": int(time.time() - data_provider.start_time)
+        "uptime": uptime,
+        "frameworks_available": framework_status,
+        "system_health": getattr(data_provider.trading_integration, 'system_health', 'UNKNOWN')
     })
+
+@app.route('/api/bayesian-analysis/<symbol>')
+def api_bayesian_analysis(symbol):
+    """Get Bayesian analysis for a symbol"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'bayesian' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'Bayesian framework not available'}), 503
+    
+    try:
+        # Generate sample data for demonstration
+        if not NUMPY_AVAILABLE:
+            return jsonify({'error': 'NumPy not available for advanced analysis'}), 503
+            
+        # Using numpy imported at top
+        price_data = np.random.normal(100, 15, 100)  # Simulated price data
+        
+        framework = data_provider.trading_integration.advanced_frameworks['bayesian']
+        analysis = framework.hierarchical_model_analysis(price_data)
+        
+        return jsonify({
+            'symbol': symbol,
+            'analysis_type': 'bayesian_hierarchical',
+            'results': analysis,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quantlib-derivatives/<symbol>')
+def api_quantlib_derivatives(symbol):
+    """Get QuantLib derivatives analysis"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'quantlib' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'QuantLib framework not available'}), 503
+    
+    try:
+        framework = data_provider.trading_integration.advanced_frameworks['quantlib']
+        
+        # Example Black-Scholes option pricing
+        option_analysis = framework.black_scholes_analysis(
+            spot=100, strike=105, risk_free_rate=0.05, 
+            volatility=0.2, time_to_expiry=0.25
+        )
+        
+        return jsonify({
+            'symbol': symbol,
+            'analysis_type': 'quantlib_derivatives',
+            'option_pricing': option_analysis,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/portfolio-optimization')
+def api_portfolio_optimization():
+    """Get portfolio optimization analysis"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'portfolio' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'Portfolio framework not available'}), 503
+    
+    try:
+        framework = data_provider.trading_integration.advanced_frameworks['portfolio']
+        
+        # Example symbols and expected returns
+        symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
+        if not NUMPY_AVAILABLE:
+            return jsonify({'error': 'NumPy not available for portfolio optimization'}), 503
+            
+        # Using numpy imported at top
+        expected_returns = np.random.normal(0.12, 0.05, len(symbols))
+        
+        optimization = framework.mean_variance_optimization(symbols, expected_returns)
+        
+        return jsonify({
+            'analysis_type': 'portfolio_optimization',
+            'symbols': symbols,
+            'optimization_results': optimization,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/garch-analysis/<symbol>')
+def api_garch_analysis(symbol):
+    """Get GARCH volatility analysis"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'timeseries' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'Time series framework not available'}), 503
+    
+    try:
+        framework = data_provider.trading_integration.advanced_frameworks['timeseries']
+        
+        # Generate sample return data for demonstration
+        # Using numpy imported at top
+        returns = np.random.normal(0.001, 0.02, 252)  # Daily returns for 1 year
+        
+        garch_analysis = framework.garch_volatility_modeling(returns)
+        
+        return jsonify({
+            'symbol': symbol,
+            'analysis_type': 'garch_volatility',
+            'volatility_forecast': garch_analysis,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ml-predictions/<symbol>')
+def api_ml_predictions(symbol):
+    """Get ML-based predictions"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'ml' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'ML framework not available'}), 503
+    
+    try:
+        framework = data_provider.trading_integration.advanced_frameworks['ml']
+        
+        # Generate sample feature data for demonstration
+        # Using numpy imported at top
+        features = np.random.randn(100, 10)  # 100 samples, 10 features
+        targets = np.random.randn(100)  # Target values
+        
+        ml_analysis = framework.ensemble_prediction(features, targets)
+        
+        return jsonify({
+            'symbol': symbol,
+            'analysis_type': 'ml_ensemble_prediction',
+            'predictions': ml_analysis,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sentiment-analysis/<symbol>')
+def api_sentiment_analysis(symbol):
+    """Get sentiment analysis for a symbol"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'ml' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'ML framework not available'}), 503
+    
+    try:
+        framework = data_provider.trading_integration.advanced_frameworks['ml']
+        
+        # Example news texts for sentiment analysis
+        news_texts = [
+            f"{symbol} reports strong quarterly earnings",
+            f"Market volatility affects {symbol} trading",
+            f"Analysts upgrade {symbol} price target"
+        ]
+        
+        sentiment_analysis = framework.sentiment_analysis(news_texts)
+        
+        return jsonify({
+            'symbol': symbol,
+            'analysis_type': 'sentiment_analysis',
+            'sentiment_scores': sentiment_analysis,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reinforcement-learning/<symbol>')
+def api_reinforcement_learning(symbol):
+    """Get reinforcement learning analysis"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'ml' not in data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'ML framework not available'}), 503
+    
+    try:
+        framework = data_provider.trading_integration.advanced_frameworks['ml']
+        
+        # Generate sample market environment data
+        # Using numpy imported at top
+        market_state = np.random.randn(50)  # Market state features
+        
+        rl_analysis = framework.reinforcement_learning_strategy(market_state)
+        
+        return jsonify({
+            'symbol': symbol,
+            'analysis_type': 'reinforcement_learning',
+            'strategy_recommendations': rl_analysis,
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/comprehensive-analysis/<symbol>')
+def api_comprehensive_analysis(symbol):
+    """Get comprehensive analysis using all available frameworks"""
+    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or not data_provider.trading_integration.advanced_frameworks:
+        return jsonify({'error': 'No advanced frameworks available'}), 503
+    
+    comprehensive_results = {
+        'symbol': symbol,
+        'analysis_timestamp': time.time(),
+        'available_frameworks': list(getattr(data_provider.trading_integration, 'framework_status', {}).keys()),
+        'analyses': {}
+    }
+    
+    # Run all available analyses
+    framework_status = getattr(data_provider.trading_integration, 'framework_status', {})
+    for framework_name, is_available in framework_status.items():
+        if not is_available:
+            continue
+            
+        try:
+            if framework_name == 'bayesian':
+                # Using numpy imported at top
+                price_data = np.random.normal(100, 15, 100)
+                framework = data_provider.trading_integration.advanced_frameworks['bayesian']
+                comprehensive_results['analyses']['bayesian'] = framework.hierarchical_model_analysis(price_data)
+                
+            elif framework_name == 'quantlib':
+                framework = data_provider.trading_integration.advanced_frameworks['quantlib']
+                comprehensive_results['analyses']['quantlib'] = framework.black_scholes_analysis(
+                    spot=100, strike=105, risk_free_rate=0.05, volatility=0.2, time_to_expiry=0.25
+                )
+                
+            elif framework_name == 'portfolio':
+                framework = data_provider.trading_integration.advanced_frameworks['portfolio']
+                symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
+                expected_returns = np.random.normal(0.12, 0.05, len(symbols))
+                comprehensive_results['analyses']['portfolio'] = framework.mean_variance_optimization(symbols, expected_returns)
+                
+            elif framework_name == 'timeseries':
+                framework = data_provider.trading_integration.advanced_frameworks['timeseries']
+                returns = np.random.normal(0.001, 0.02, 252)
+                comprehensive_results['analyses']['timeseries'] = framework.garch_volatility_modeling(returns)
+                
+            elif framework_name == 'ml':
+                framework = data_provider.trading_integration.advanced_frameworks['ml']
+                features = np.random.randn(100, 10)
+                targets = np.random.randn(100)
+                comprehensive_results['analyses']['ml'] = framework.ensemble_prediction(features, targets)
+                
+        except Exception as e:
+            comprehensive_results['analyses'][framework_name] = {'error': str(e)}
+    
+    return jsonify(comprehensive_results)
 
 if __name__ == '__main__':
     # Ensure directories exist

@@ -21,6 +21,23 @@ from .dataset import BTCDataManager
 from .crewai_intelligence import CrewAIIntelligenceSystem
 from .adk_execution import ExecutionLayer
 
+# Import all advanced 5-phase frameworks for complete system integration
+try:
+    from .quant_models import (
+        BayesianTradingFramework,
+        QuantLibFinancialEngineering,
+        AdvancedPortfolioOptimization,
+        AdvancedTimeSeriesAnalysis,
+        AdvancedMLTradingFramework,
+        AdvancedPhysicsModels,
+        MarketMicrostructure
+    )
+    ADVANCED_FRAMEWORKS_AVAILABLE = True
+    print("✅ Advanced 5-phase frameworks available for main system")
+except ImportError as e:
+    print(f"⚠️ Advanced frameworks not available: {e}")
+    ADVANCED_FRAMEWORKS_AVAILABLE = False
+
 # Setup logging first thing
 loggers = setup_agent_logging()
 main_logger = loggers["main"]
@@ -51,6 +68,11 @@ class AgentTradingSystem:
         self.intelligence_system = None
         self.execution_engine = None
         self.running = False
+        
+        # Initialize all advanced 5-phase frameworks for main system
+        self.advanced_frameworks = {}
+        self.framework_status = {}
+        self._initialize_advanced_frameworks()
         
         # System metrics
         self.start_time = time.time()
@@ -84,6 +106,77 @@ class AgentTradingSystem:
             },
             status="started"
         )
+    
+    def _initialize_advanced_frameworks(self):
+        """Initialize all advanced 5-phase frameworks for main system orchestration"""
+        if not ADVANCED_FRAMEWORKS_AVAILABLE:
+            main_logger.warning("⚠️ Advanced frameworks not available - using basic system only")
+            return
+        
+        main_logger.info("Initializing advanced 5-phase frameworks for main system...")
+        
+        try:
+            # Phase 1: Bayesian Framework
+            main_logger.info("Initializing Phase 1: Bayesian Trading Framework")
+            self.advanced_frameworks['bayesian'] = BayesianTradingFramework()
+            self.framework_status['bayesian'] = self.advanced_frameworks['bayesian'].is_available
+            
+            # Phase 2: QuantLib Framework
+            main_logger.info("Initializing Phase 2: QuantLib Financial Engineering")
+            self.advanced_frameworks['quantlib'] = QuantLibFinancialEngineering()
+            self.framework_status['quantlib'] = self.advanced_frameworks['quantlib'].is_available
+            
+            # Phase 3: Portfolio Optimization Framework
+            main_logger.info("Initializing Phase 3: Advanced Portfolio Optimization")
+            self.advanced_frameworks['portfolio'] = AdvancedPortfolioOptimization()
+            self.framework_status['portfolio'] = self.advanced_frameworks['portfolio'].is_available
+            
+            # Phase 4: Time Series Framework
+            main_logger.info("Initializing Phase 4: Advanced Time Series Analysis")
+            self.advanced_frameworks['timeseries'] = AdvancedTimeSeriesAnalysis()
+            self.framework_status['timeseries'] = self.advanced_frameworks['timeseries'].is_available
+            
+            # Phase 5: ML/AI Framework
+            main_logger.info("Initializing Phase 5: Advanced ML Trading Framework")
+            self.advanced_frameworks['ml'] = AdvancedMLTradingFramework()
+            self.framework_status['ml'] = self.advanced_frameworks['ml'].is_available
+            
+            # Additional Physics and Microstructure Models
+            main_logger.info("Initializing Advanced Physics Models")
+            self.advanced_frameworks['physics'] = AdvancedPhysicsModels()
+            self.framework_status['physics'] = self.advanced_frameworks['physics'].is_available
+            
+            main_logger.info("Initializing Market Microstructure Models")
+            self.advanced_frameworks['microstructure'] = MarketMicrostructure()
+            self.framework_status['microstructure'] = self.advanced_frameworks['microstructure'].is_available
+            
+            # Log framework status
+            available_count = sum(1 for status in self.framework_status.values() if status)
+            total_count = len(self.framework_status)
+            
+            main_logger.info(f"✅ Advanced frameworks initialized: {available_count}/{total_count} available")
+            main_logger.info(f"Framework availability: {self.framework_status}")
+            
+            main_logger.log_action(
+                "advanced_frameworks_init",
+                {
+                    "frameworks_available": available_count,
+                    "total_frameworks": total_count,
+                    "framework_status": self.framework_status,
+                    "description": "Advanced 5-phase frameworks initialization completed"
+                },
+                status="completed"
+            )
+            
+        except Exception as e:
+            main_logger.error(f"⚠️ Could not initialize advanced frameworks: {e}")
+            main_logger.log_error(
+                "advanced_frameworks_init_failed",
+                str(e),
+                {"error_type": type(e).__name__}
+            )
+            self.advanced_frameworks = {}
+            self.framework_status = {}
     
     def _validate_environment(self):
         """Validate environment configuration"""
@@ -231,12 +324,15 @@ class AgentTradingSystem:
                 }
             )
             
-            # Step 2: Generate intelligence signals
-            crewai_logger.info("Generating trading signals with CrewAI...")
+            # Step 2: Generate intelligence signals with advanced frameworks integration
+            crewai_logger.info("Generating trading signals with CrewAI and advanced frameworks...")
             portfolio_data = await self._get_portfolio_data()
             
+            # Enhance with advanced framework analysis if available
+            advanced_analysis = await self._run_advanced_analysis(market_data)
+            
             trading_signal = self.intelligence_system.generate_trading_signal(
-                market_data, portfolio_data
+                market_data, portfolio_data, advanced_analysis
             )
             
             # Update dashboard decision data
@@ -247,8 +343,8 @@ class AgentTradingSystem:
                 'timestamp': time.time()
             }
             
-            # Write decision data to file for dashboard
-            self._write_dashboard_data({
+            # Write comprehensive decision and analysis data to file for dashboard
+            dashboard_data = {
                 'market_data': {
                     'price': self.latest_price,
                     'change_24h': self.price_change_24h,
@@ -256,7 +352,19 @@ class AgentTradingSystem:
                     'timestamp': time.time()
                 },
                 'decision': self.latest_decision
-            })
+            }
+            
+            # Include advanced analysis results if available
+            if advanced_analysis and advanced_analysis.get("frameworks_used"):
+                dashboard_data['advanced_analysis'] = {
+                    'frameworks_used': advanced_analysis.get("frameworks_used", []),
+                    'frameworks_count': len(advanced_analysis.get("frameworks_used", [])),
+                    'analysis_summary': advanced_analysis.get("analysis", {}),
+                    'timestamp': advanced_analysis.get("timestamp", time.time())
+                }
+                main_logger.info(f"Dashboard data enhanced with {len(advanced_analysis.get('frameworks_used', []))} advanced framework results")
+            
+            self._write_dashboard_data(dashboard_data)
             
             # Step 3: Execute trades with ADK
             adk_logger.info("Processing signals with ADK Execution Engine...")
@@ -469,6 +577,173 @@ class AgentTradingSystem:
             self.is_running = False  # For dashboard
             main_logger.info("Continuous trading stopped")
             await self.shutdown()
+    
+    async def _run_advanced_analysis(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Run comprehensive analysis using all available advanced frameworks"""
+        
+        if not self.advanced_frameworks:
+            main_logger.info("No advanced frameworks available - using basic analysis")
+            return {"status": "basic_analysis_only"}
+        
+        main_logger.info("Running advanced 5-phase analysis...")
+        analysis_results = {
+            "timestamp": time.time(),
+            "frameworks_used": [],
+            "analysis": {}
+        }
+        
+        try:
+            # Extract price data for analysis
+            candles = market_data.get('candles', [])
+            if not candles:
+                main_logger.warning("No price data available for advanced analysis")
+                return {"status": "no_data", "error": "No candle data available"}
+            
+            # Convert candles to arrays for analysis
+            prices = [float(candle.get('close', 0)) for candle in candles[-100:]]  # Last 100 periods
+            returns = []
+            for i in range(1, len(prices)):
+                if prices[i-1] != 0:
+                    returns.append((prices[i] - prices[i-1]) / prices[i-1])
+            
+            # Phase 1: Bayesian Analysis
+            if self.framework_status.get('bayesian', False):
+                try:
+                    main_logger.info("Running Bayesian hierarchical analysis...")
+                    bayesian_framework = self.advanced_frameworks['bayesian']
+                    bayesian_result = bayesian_framework.hierarchical_model_analysis(prices)
+                    analysis_results["analysis"]["bayesian"] = bayesian_result
+                    analysis_results["frameworks_used"].append("bayesian")
+                    main_logger.info("✅ Bayesian analysis completed")
+                except Exception as e:
+                    main_logger.error(f"Bayesian analysis failed: {e}")
+                    analysis_results["analysis"]["bayesian"] = {"error": str(e)}
+            
+            # Phase 2: QuantLib Derivatives Analysis
+            if self.framework_status.get('quantlib', False):
+                try:
+                    main_logger.info("Running QuantLib derivatives analysis...")
+                    quantlib_framework = self.advanced_frameworks['quantlib']
+                    current_price = prices[-1] if prices else 50000
+                    quantlib_result = quantlib_framework.black_scholes_analysis(
+                        spot=current_price, 
+                        strike=current_price * 1.05,  # 5% OTM call
+                        risk_free_rate=0.05, 
+                        volatility=0.3, 
+                        time_to_expiry=0.25
+                    )
+                    analysis_results["analysis"]["quantlib"] = quantlib_result
+                    analysis_results["frameworks_used"].append("quantlib")
+                    main_logger.info("✅ QuantLib analysis completed")
+                except Exception as e:
+                    main_logger.error(f"QuantLib analysis failed: {e}")
+                    analysis_results["analysis"]["quantlib"] = {"error": str(e)}
+            
+            # Phase 3: Portfolio Optimization
+            if self.framework_status.get('portfolio', False):
+                try:
+                    main_logger.info("Running portfolio optimization analysis...")
+                    portfolio_framework = self.advanced_frameworks['portfolio']
+                    symbols = ['BTC', 'ETH', 'SPY', 'GOLD']  # Multi-asset analysis
+                    expected_returns = [0.15, 0.12, 0.08, 0.05]  # Example expected returns
+                    portfolio_result = portfolio_framework.mean_variance_optimization(symbols, expected_returns)
+                    analysis_results["analysis"]["portfolio"] = portfolio_result
+                    analysis_results["frameworks_used"].append("portfolio")
+                    main_logger.info("✅ Portfolio optimization completed")
+                except Exception as e:
+                    main_logger.error(f"Portfolio analysis failed: {e}")
+                    analysis_results["analysis"]["portfolio"] = {"error": str(e)}
+            
+            # Phase 4: GARCH Time Series Analysis
+            if self.framework_status.get('timeseries', False) and len(returns) > 50:
+                try:
+                    main_logger.info("Running GARCH volatility analysis...")
+                    timeseries_framework = self.advanced_frameworks['timeseries']
+                    garch_result = timeseries_framework.garch_volatility_modeling(returns)
+                    analysis_results["analysis"]["timeseries"] = garch_result
+                    analysis_results["frameworks_used"].append("timeseries")
+                    main_logger.info("✅ GARCH analysis completed")
+                except Exception as e:
+                    main_logger.error(f"Time series analysis failed: {e}")
+                    analysis_results["analysis"]["timeseries"] = {"error": str(e)}
+            
+            # Phase 5: ML/AI Predictions
+            if self.framework_status.get('ml', False) and len(prices) > 20:
+                try:
+                    main_logger.info("Running ML ensemble predictions...")
+                    ml_framework = self.advanced_frameworks['ml']
+                    
+                    # Create feature matrix from price data
+                    features = []
+                    targets = []
+                    for i in range(10, len(prices)-1):
+                        # Use last 10 prices as features
+                        feature_row = prices[i-10:i]
+                        target = 1 if prices[i+1] > prices[i] else 0  # Binary target: price up/down
+                        features.append(feature_row)
+                        targets.append(target)
+                    
+                    if len(features) > 10:
+                        ml_result = ml_framework.ensemble_prediction(features, targets)
+                        analysis_results["analysis"]["ml"] = ml_result
+                        analysis_results["frameworks_used"].append("ml")
+                        main_logger.info("✅ ML ensemble analysis completed")
+                except Exception as e:
+                    main_logger.error(f"ML analysis failed: {e}")
+                    analysis_results["analysis"]["ml"] = {"error": str(e)}
+            
+            # Physics-based Risk Analysis
+            if self.framework_status.get('physics', False):
+                try:
+                    main_logger.info("Running physics-based risk analysis...")
+                    physics_framework = self.advanced_frameworks['physics']
+                    physics_result = physics_framework.comprehensive_physics_analysis(returns if returns else [0.01])
+                    analysis_results["analysis"]["physics"] = physics_result
+                    analysis_results["frameworks_used"].append("physics")
+                    main_logger.info("✅ Physics analysis completed")
+                except Exception as e:
+                    main_logger.error(f"Physics analysis failed: {e}")
+                    analysis_results["analysis"]["physics"] = {"error": str(e)}
+            
+            # Market Microstructure Analysis
+            if self.framework_status.get('microstructure', False):
+                try:
+                    main_logger.info("Running market microstructure analysis...")
+                    microstructure_framework = self.advanced_frameworks['microstructure']
+                    # Use volume data if available
+                    volumes = [float(candle.get('volume', 1000000)) for candle in candles[-50:]]
+                    microstructure_result = microstructure_framework.analyze_market_impact(prices[-50:], volumes)
+                    analysis_results["analysis"]["microstructure"] = microstructure_result
+                    analysis_results["frameworks_used"].append("microstructure")
+                    main_logger.info("✅ Microstructure analysis completed")
+                except Exception as e:
+                    main_logger.error(f"Microstructure analysis failed: {e}")
+                    analysis_results["analysis"]["microstructure"] = {"error": str(e)}
+            
+            # Log comprehensive results
+            frameworks_count = len(analysis_results["frameworks_used"])
+            main_logger.info(f"✅ Advanced analysis completed using {frameworks_count} frameworks")
+            main_logger.log_action(
+                "advanced_analysis",
+                {
+                    "frameworks_used": analysis_results["frameworks_used"],
+                    "frameworks_count": frameworks_count,
+                    "data_points_analyzed": len(prices),
+                    "description": f"Comprehensive 5-phase analysis using {frameworks_count} advanced frameworks"
+                },
+                status="completed"
+            )
+            
+            return analysis_results
+            
+        except Exception as e:
+            main_logger.error(f"Advanced analysis failed: {e}")
+            main_logger.log_error(
+                "advanced_analysis_failed",
+                str(e),
+                {"error_type": type(e).__name__}
+            )
+            return {"status": "error", "error": str(e), "frameworks_used": []}
     
     async def _log_system_metrics(self):
         """Log system performance metrics"""

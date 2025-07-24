@@ -48,6 +48,93 @@ class TradingConfig:
     symbols: List[str] = None
     update_interval: int = 30
     min_validation_score: float = 0.7
+    
+    # Advanced frameworks configuration
+    enable_bayesian: bool = True
+    enable_quantlib: bool = True
+    enable_portfolio_optimization: bool = True
+    enable_garch_analysis: bool = True
+    enable_ml_frameworks: bool = True
+    enable_physics_models: bool = True
+    enable_microstructure: bool = True
+    
+    # Advanced analysis settings
+    bayesian_mcmc_draws: int = 2000
+    bayesian_tune_steps: int = 1000
+    garch_lookback_days: int = 252
+    ml_ensemble_models: int = 5
+    portfolio_rebalance_freq: str = "weekly"
+    
+    def __post_init__(self):
+        if self.symbols is None:
+            self.symbols = ["BTCUSDT"]
+
+
+@dataclass
+class AdvancedFrameworksConfig:
+    """Configuration for advanced 5-phase frameworks"""
+    # Phase 1: Bayesian
+    bayesian_enabled: bool = True
+    mcmc_draws: int = 2000
+    mcmc_tune: int = 1000
+    hierarchical_levels: int = 3
+    
+    # Phase 2: QuantLib
+    quantlib_enabled: bool = True
+    risk_free_rate: float = 0.05
+    default_volatility: float = 0.25
+    option_exercise_style: str = "european"
+    
+    # Phase 3: Portfolio
+    portfolio_enabled: bool = True
+    risk_aversion: float = 2.0
+    max_weight: float = 0.4
+    min_weight: float = 0.05
+    rebalance_threshold: float = 0.05
+    
+    # Phase 4: Time Series
+    timeseries_enabled: bool = True
+    garch_model: str = "GARCH(1,1)"
+    arch_lags: int = 1
+    garch_lags: int = 1
+    min_periods: int = 100
+    
+    # Phase 5: ML/AI
+    ml_enabled: bool = True
+    ensemble_size: int = 5
+    train_test_split: float = 0.8
+    cross_validation_folds: int = 5
+    feature_selection: bool = True
+    
+    # Physics Models
+    physics_enabled: bool = True
+    entropy_window: int = 50
+    hurst_window: int = 100
+    lyapunov_window: int = 50
+    
+    # Market Microstructure
+    microstructure_enabled: bool = True
+    tick_analysis: bool = True
+    order_book_depth: int = 10
+    
+    def get_enabled_frameworks(self) -> List[str]:
+        """Get list of enabled frameworks"""
+        enabled = []
+        if self.bayesian_enabled:
+            enabled.append("bayesian")
+        if self.quantlib_enabled:
+            enabled.append("quantlib")
+        if self.portfolio_enabled:
+            enabled.append("portfolio")
+        if self.timeseries_enabled:
+            enabled.append("timeseries")
+        if self.ml_enabled:
+            enabled.append("ml")
+        if self.physics_enabled:
+            enabled.append("physics")
+        if self.microstructure_enabled:
+            enabled.append("microstructure")
+        return enabled
     enable_paper_trading: bool = True
     enable_live_trading: bool = False
     broker_api_key: Optional[str] = None
@@ -154,6 +241,9 @@ class ConfigManager:
         self.database = self._load_database_config()
         self.redis = self._load_redis_config()
         self.docker = self._load_docker_config()
+        
+        # Load advanced frameworks configuration
+        self.advanced_frameworks = self._load_advanced_frameworks_config()
         
         # Validate configuration if environment module is available
         if self.use_environment_module:
@@ -360,6 +450,54 @@ class ConfigManager:
             issues['errors'].append("MIN_VALIDATION_SCORE must be between 0 and 1")
         
         return issues
+    
+    def _load_advanced_frameworks_config(self) -> AdvancedFrameworksConfig:
+        """Load advanced 5-phase frameworks configuration"""
+        return AdvancedFrameworksConfig(
+            # Phase 1: Bayesian
+            bayesian_enabled=self._get_env_value("BAYESIAN_ENABLED", True, bool),
+            mcmc_draws=self._get_env_value("MCMC_DRAWS", 2000, int),
+            mcmc_tune=self._get_env_value("MCMC_TUNE", 1000, int),
+            hierarchical_levels=self._get_env_value("HIERARCHICAL_LEVELS", 3, int),
+            
+            # Phase 2: QuantLib
+            quantlib_enabled=self._get_env_value("QUANTLIB_ENABLED", True, bool),
+            risk_free_rate=self._get_env_value("RISK_FREE_RATE", 0.05, float),
+            default_volatility=self._get_env_value("DEFAULT_VOLATILITY", 0.25, float),
+            option_exercise_style=self._get_env_value("OPTION_EXERCISE_STYLE", "european"),
+            
+            # Phase 3: Portfolio
+            portfolio_enabled=self._get_env_value("PORTFOLIO_ENABLED", True, bool),
+            risk_aversion=self._get_env_value("RISK_AVERSION", 2.0, float),
+            max_weight=self._get_env_value("MAX_WEIGHT", 0.4, float),
+            min_weight=self._get_env_value("MIN_WEIGHT", 0.05, float),
+            rebalance_threshold=self._get_env_value("REBALANCE_THRESHOLD", 0.05, float),
+            
+            # Phase 4: Time Series
+            timeseries_enabled=self._get_env_value("TIMESERIES_ENABLED", True, bool),
+            garch_model=self._get_env_value("GARCH_MODEL", "GARCH(1,1)"),
+            arch_lags=self._get_env_value("ARCH_LAGS", 1, int),
+            garch_lags=self._get_env_value("GARCH_LAGS", 1, int),
+            min_periods=self._get_env_value("MIN_PERIODS", 100, int),
+            
+            # Phase 5: ML/AI
+            ml_enabled=self._get_env_value("ML_ENABLED", True, bool),
+            ensemble_size=self._get_env_value("ENSEMBLE_SIZE", 5, int),
+            train_test_split=self._get_env_value("TRAIN_TEST_SPLIT", 0.8, float),
+            cross_validation_folds=self._get_env_value("CV_FOLDS", 5, int),
+            feature_selection=self._get_env_value("FEATURE_SELECTION", True, bool),
+            
+            # Physics Models
+            physics_enabled=self._get_env_value("PHYSICS_ENABLED", True, bool),
+            entropy_window=self._get_env_value("ENTROPY_WINDOW", 50, int),
+            hurst_window=self._get_env_value("HURST_WINDOW", 100, int),
+            lyapunov_window=self._get_env_value("LYAPUNOV_WINDOW", 50, int),
+            
+            # Market Microstructure
+            microstructure_enabled=self._get_env_value("MICROSTRUCTURE_ENABLED", True, bool),
+            tick_analysis=self._get_env_value("TICK_ANALYSIS", True, bool),
+            order_book_depth=self._get_env_value("ORDER_BOOK_DEPTH", 10, int)
+        )
 
 
 # Global configuration instance

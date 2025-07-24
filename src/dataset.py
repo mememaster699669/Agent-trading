@@ -42,11 +42,11 @@ class OHLCVData:
 
 @dataclass
 class ProcessedFeatures:
-    """Processed features for quantitative analysis"""
+    """Processed features for quantitative analysis - enhanced for advanced frameworks"""
     timestamp: datetime
     symbol: str
     
-    # Price features
+    # Basic price features
     price_return: float
     log_return: float
     volatility: float
@@ -67,9 +67,48 @@ class ProcessedFeatures:
     z_score_20: float
     momentum_5: float
     
+    # Advanced features for 5-phase frameworks
+    # Bayesian features
+    price_level_probability: Optional[float] = None
+    regime_probability: Optional[float] = None
+    bayesian_confidence: Optional[float] = None
+    
+    # QuantLib features
+    implied_volatility: Optional[float] = None
+    option_delta: Optional[float] = None
+    option_gamma: Optional[float] = None
+    time_value: Optional[float] = None
+    
+    # Portfolio features
+    correlation_btc_eth: Optional[float] = None
+    portfolio_beta: Optional[float] = None
+    diversification_ratio: Optional[float] = None
+    
+    # GARCH/Time series features
+    conditional_volatility: Optional[float] = None
+    volatility_forecast: Optional[float] = None
+    arch_effect: Optional[float] = None
+    
+    # ML features
+    ml_prediction: Optional[float] = None
+    ensemble_confidence: Optional[float] = None
+    feature_importance: Optional[Dict[str, float]] = None
+    
+    # Physics-based features
+    entropy_score: Optional[float] = None
+    hurst_exponent: Optional[float] = None
+    lyapunov_exponent: Optional[float] = None
+    fractal_dimension: Optional[float] = None
+    
+    # Microstructure features
+    bid_ask_spread: Optional[float] = None
+    order_flow_imbalance: Optional[float] = None
+    market_impact: Optional[float] = None
+    
     # Quality metrics
     data_quality: float
     feature_confidence: float
+    frameworks_applied: Optional[List[str]] = None
 
 
 class BinanceDataCollector:
@@ -496,7 +535,7 @@ class DatabaseManager:
 
 class BTCDataManager:
     """
-    Main BTC data management orchestrator
+    Main BTC data management orchestrator - enhanced for advanced 5-phase frameworks
     """
     
     def __init__(self, config: ConfigManager):
@@ -505,6 +544,52 @@ class BTCDataManager:
         self.processor = DataProcessor()
         self.db_manager = DatabaseManager(config)
         self.logger = logging.getLogger(f"{__name__}.BTCDataManager")
+        
+        # Advanced frameworks integration
+        self.advanced_frameworks = {}
+        self._initialize_advanced_frameworks()
+    
+    def _initialize_advanced_frameworks(self):
+        """Initialize advanced frameworks for enhanced data processing"""
+        try:
+            # Try to import and initialize advanced frameworks
+            from .quant_models import (
+                BayesianTradingFramework,
+                QuantLibFinancialEngineering,
+                AdvancedPortfolioOptimization,
+                AdvancedTimeSeriesAnalysis,
+                AdvancedMLTradingFramework,
+                AdvancedPhysicsModels,
+                MarketMicrostructure
+            )
+            
+            # Initialize frameworks based on configuration
+            if self.config.advanced_frameworks.bayesian_enabled:
+                self.advanced_frameworks['bayesian'] = BayesianTradingFramework()
+                
+            if self.config.advanced_frameworks.quantlib_enabled:
+                self.advanced_frameworks['quantlib'] = QuantLibFinancialEngineering()
+                
+            if self.config.advanced_frameworks.portfolio_enabled:
+                self.advanced_frameworks['portfolio'] = AdvancedPortfolioOptimization()
+                
+            if self.config.advanced_frameworks.timeseries_enabled:
+                self.advanced_frameworks['timeseries'] = AdvancedTimeSeriesAnalysis()
+                
+            if self.config.advanced_frameworks.ml_enabled:
+                self.advanced_frameworks['ml'] = AdvancedMLTradingFramework()
+                
+            if self.config.advanced_frameworks.physics_enabled:
+                self.advanced_frameworks['physics'] = AdvancedPhysicsModels()
+                
+            if self.config.advanced_frameworks.microstructure_enabled:
+                self.advanced_frameworks['microstructure'] = MarketMicrostructure()
+            
+            self.logger.info(f"✅ Initialized {len(self.advanced_frameworks)} advanced frameworks for data processing")
+            
+        except ImportError as e:
+            self.logger.warning(f"⚠️ Advanced frameworks not available: {e}")
+            self.advanced_frameworks = {}
     
     async def initialize(self):
         """Initialize the BTC data manager"""
@@ -512,17 +597,18 @@ class BTCDataManager:
         return True
     
     async def fetch_latest_data(self) -> Dict[str, Any]:
-        """Fetch latest market data for trading"""
+        """Fetch latest market data for trading with advanced framework enhancements"""
         try:
             # Fetch latest candles
-            candles = await self.collector.fetch_latest_candles(limit=50)
+            candles = await self.collector.fetch_latest_candles(limit=100)  # Increased for advanced analysis
             
             if not candles:
                 return {
                     'candles': [],
                     'latest_price': 0,
                     'timeframe': '15m',
-                    'symbol': 'BTCUSDT'
+                    'symbol': 'BTCUSDT',
+                    'advanced_features': {}
                 }
             
             # Convert to dict format
@@ -537,21 +623,145 @@ class BTCDataManager:
                     'volume': candle.volume
                 })
             
-            return {
+            # Calculate basic features
+            prices = [c.close for c in candles]
+            volumes = [c.volume for c in candles]
+            
+            # Calculate returns for advanced analysis
+            returns = []
+            for i in range(1, len(prices)):
+                if prices[i-1] != 0:
+                    returns.append((prices[i] - prices[i-1]) / prices[i-1])
+            
+            # Generate advanced features using available frameworks
+            advanced_features = await self._generate_advanced_features(prices, returns, volumes)
+            
+            # Calculate price change
+            price_change_24h = 0
+            if len(prices) >= 96:  # 24 hours of 15m candles
+                price_change_24h = ((prices[-1] - prices[-96]) / prices[-96]) * 100
+            
+            result = {
                 'candles': candles_data,
                 'latest_price': candles[-1].close,
+                'price_change_24h': price_change_24h,
+                'volume_24h': sum(volumes[-96:]) if len(volumes) >= 96 else sum(volumes),
                 'timeframe': '15m',
-                'symbol': 'BTCUSDT'
+                'symbol': 'BTCUSDT',
+                'advanced_features': advanced_features,
+                'data_quality_score': self._calculate_data_quality(candles)
             }
             
+            self.logger.info(f"Fetched {len(candles)} candles with {len(advanced_features)} advanced features")
+            return result
+            
         except Exception as e:
-            self.logger.error(f"Failed to fetch latest data: {e}")
+            self.logger.error(f"Error fetching latest data: {e}")
             return {
                 'candles': [],
                 'latest_price': 0,
+                'price_change_24h': 0,
+                'volume_24h': 0,
                 'timeframe': '15m',
-                'symbol': 'BTCUSDT'
+                'symbol': 'BTCUSDT',
+                'advanced_features': {},
+                'error': str(e)
             }
+    
+    async def _generate_advanced_features(self, prices: List[float], returns: List[float], volumes: List[float]) -> Dict[str, Any]:
+        """Generate advanced features using available frameworks"""
+        features = {}
+        
+        try:
+            # Bayesian features
+            if 'bayesian' in self.advanced_frameworks and len(prices) > 50:
+                bayesian_framework = self.advanced_frameworks['bayesian']
+                bayesian_result = bayesian_framework.hierarchical_model_analysis(prices[-50:])
+                features['bayesian'] = bayesian_result
+            
+            # QuantLib features
+            if 'quantlib' in self.advanced_frameworks:
+                quantlib_framework = self.advanced_frameworks['quantlib']
+                current_price = prices[-1]
+                option_analysis = quantlib_framework.black_scholes_analysis(
+                    spot=current_price,
+                    strike=current_price * 1.05,
+                    risk_free_rate=self.config.advanced_frameworks.risk_free_rate,
+                    volatility=self.config.advanced_frameworks.default_volatility,
+                    time_to_expiry=0.25
+                )
+                features['quantlib'] = option_analysis
+            
+            # Time series features
+            if 'timeseries' in self.advanced_frameworks and len(returns) > 50:
+                timeseries_framework = self.advanced_frameworks['timeseries']
+                garch_result = timeseries_framework.garch_volatility_modeling(returns[-50:])
+                features['timeseries'] = garch_result
+            
+            # ML features
+            if 'ml' in self.advanced_frameworks and len(prices) > 20:
+                ml_framework = self.advanced_frameworks['ml']
+                
+                # Create feature matrix
+                feature_matrix = []
+                targets = []
+                for i in range(10, len(prices)-1):
+                    feature_row = prices[i-10:i]
+                    target = 1 if prices[i+1] > prices[i] else 0
+                    feature_matrix.append(feature_row)
+                    targets.append(target)
+                
+                if len(feature_matrix) > 10:
+                    ml_result = ml_framework.ensemble_prediction(feature_matrix, targets)
+                    features['ml'] = ml_result
+            
+            # Physics features
+            if 'physics' in self.advanced_frameworks and len(returns) > 20:
+                physics_framework = self.advanced_frameworks['physics']
+                physics_result = physics_framework.comprehensive_physics_analysis(returns[-50:] if len(returns) >= 50 else returns)
+                features['physics'] = physics_result
+            
+            # Microstructure features
+            if 'microstructure' in self.advanced_frameworks:
+                microstructure_framework = self.advanced_frameworks['microstructure']
+                microstructure_result = microstructure_framework.analyze_market_impact(
+                    prices[-20:] if len(prices) >= 20 else prices,
+                    volumes[-20:] if len(volumes) >= 20 else volumes
+                )
+                features['microstructure'] = microstructure_result
+            
+        except Exception as e:
+            self.logger.error(f"Error generating advanced features: {e}")
+            features['error'] = str(e)
+        
+        return features
+    
+    def _calculate_data_quality(self, candles: List[OHLCVData]) -> float:
+        """Calculate data quality score"""
+        if not candles:
+            return 0.0
+        
+        quality_score = 1.0
+        
+        # Check for missing data
+        expected_interval = timedelta(minutes=15)
+        for i in range(1, len(candles)):
+            actual_interval = candles[i].timestamp - candles[i-1].timestamp
+            if abs(actual_interval.total_seconds() - expected_interval.total_seconds()) > 60:
+                quality_score -= 0.1
+        
+        # Check for zero volumes
+        zero_volume_count = sum(1 for c in candles if c.volume == 0)
+        quality_score -= (zero_volume_count / len(candles)) * 0.5
+        
+        # Check for price anomalies
+        prices = [c.close for c in candles]
+        if len(prices) > 1:
+            price_changes = [abs((prices[i] - prices[i-1]) / prices[i-1]) for i in range(1, len(prices))]
+            extreme_changes = sum(1 for change in price_changes if change > 0.1)  # 10% moves
+            quality_score -= (extreme_changes / len(price_changes)) * 0.3
+        
+        return max(0.0, min(1.0, quality_score))
     
     async def cleanup(self):
         """Cleanup resources"""

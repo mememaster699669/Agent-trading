@@ -199,6 +199,118 @@ class AgentTradingLogger:
         }
         return self.log_action("system_metrics", details)
     
+    # =============================================================================
+    # Advanced Frameworks Logging Methods
+    # =============================================================================
+    
+    def log_bayesian_analysis(self, analysis_type: str, model_params: Dict[str, Any], 
+                             mcmc_stats: Dict[str, Any], convergence_info: Dict[str, Any]):
+        """Log Bayesian analysis operations"""
+        details = {
+            "analysis_type": analysis_type,
+            "model_params": model_params,
+            "mcmc_stats": mcmc_stats,
+            "convergence_info": convergence_info,
+            "description": f"Bayesian {analysis_type} analysis with MCMC"
+        }
+        return self.log_action("bayesian_analysis", details)
+    
+    def log_quantlib_pricing(self, instrument_type: str, pricing_params: Dict[str, Any], 
+                            valuation_results: Dict[str, Any], greeks: Optional[Dict[str, Any]] = None):
+        """Log QuantLib pricing operations"""
+        details = {
+            "instrument_type": instrument_type,
+            "pricing_params": pricing_params,
+            "valuation_results": valuation_results,
+            "greeks": greeks or {},
+            "description": f"QuantLib pricing for {instrument_type}"
+        }
+        return self.log_action("quantlib_pricing", details)
+    
+    def log_portfolio_optimization(self, optimization_type: str, constraints: Dict[str, Any], 
+                                  portfolio_metrics: Dict[str, Any], optimization_results: Dict[str, Any]):
+        """Log portfolio optimization operations"""
+        details = {
+            "optimization_type": optimization_type,
+            "constraints": constraints,
+            "portfolio_metrics": portfolio_metrics,
+            "optimization_results": optimization_results,
+            "description": f"Portfolio optimization: {optimization_type}"
+        }
+        return self.log_action("portfolio_optimization", details)
+    
+    def log_garch_analysis(self, model_type: str, model_params: Dict[str, Any], 
+                          volatility_forecast: Dict[str, Any], diagnostic_tests: Dict[str, Any]):
+        """Log GARCH volatility modeling"""
+        details = {
+            "model_type": model_type,
+            "model_params": model_params,
+            "volatility_forecast": volatility_forecast,
+            "diagnostic_tests": diagnostic_tests,
+            "description": f"GARCH volatility analysis: {model_type}"
+        }
+        return self.log_action("garch_analysis", details)
+    
+    def log_ml_prediction(self, model_type: str, feature_count: int, prediction_results: Dict[str, Any], 
+                         model_performance: Dict[str, Any], ensemble_info: Optional[Dict[str, Any]] = None):
+        """Log ML/AI prediction operations"""
+        details = {
+            "model_type": model_type,
+            "feature_count": feature_count,
+            "prediction_results": prediction_results,
+            "model_performance": model_performance,
+            "ensemble_info": ensemble_info or {},
+            "description": f"ML prediction using {model_type}"
+        }
+        return self.log_action("ml_prediction", details)
+    
+    def log_physics_analysis(self, analysis_type: str, physics_params: Dict[str, Any], 
+                           entropy_metrics: Dict[str, Any], complexity_measures: Dict[str, Any]):
+        """Log physics-based market analysis"""
+        details = {
+            "analysis_type": analysis_type,
+            "physics_params": physics_params,
+            "entropy_metrics": entropy_metrics,
+            "complexity_measures": complexity_measures,
+            "description": f"Physics analysis: {analysis_type}"
+        }
+        return self.log_action("physics_analysis", details)
+    
+    def log_microstructure_analysis(self, analysis_type: str, market_data_summary: Dict[str, Any], 
+                                   order_flow_metrics: Dict[str, Any], liquidity_measures: Dict[str, Any]):
+        """Log market microstructure analysis"""
+        details = {
+            "analysis_type": analysis_type,
+            "market_data_summary": market_data_summary,
+            "order_flow_metrics": order_flow_metrics,
+            "liquidity_measures": liquidity_measures,
+            "description": f"Microstructure analysis: {analysis_type}"
+        }
+        return self.log_action("microstructure_analysis", details)
+    
+    def log_framework_availability(self, framework_status: Dict[str, Any]):
+        """Log advanced frameworks availability and configuration"""
+        details = {
+            "framework_status": framework_status,
+            "enabled_count": len(framework_status.get("enabled_frameworks", [])),
+            "disabled_count": len(framework_status.get("disabled_frameworks", [])),
+            "description": f"Advanced frameworks status: {framework_status.get('enabled_frameworks', [])}"
+        }
+        return self.log_action("framework_availability", details)
+    
+    def log_comprehensive_analysis(self, analysis_results: Dict[str, Any], frameworks_used: list, 
+                                  execution_time: float, confidence_score: float):
+        """Log comprehensive multi-framework analysis results"""
+        details = {
+            "analysis_results": analysis_results,
+            "frameworks_used": frameworks_used,
+            "execution_time_ms": execution_time * 1000,
+            "confidence_score": confidence_score,
+            "frameworks_count": len(frameworks_used),
+            "description": f"Comprehensive analysis using {len(frameworks_used)} frameworks"
+        }
+        return self.log_action("comprehensive_analysis", details)
+    
     def info(self, message: str):
         """Standard info logging"""
         self.logger.info(message)
@@ -248,8 +360,26 @@ def setup_agent_logging():
     risk_logger = get_logger("RiskManagement")
     quant_logger = get_logger("QuantitativeModels")
     
+    # Advanced frameworks loggers
+    bayesian_logger = get_logger("BayesianFramework")
+    quantlib_logger = get_logger("QuantLibFramework")
+    portfolio_logger = get_logger("PortfolioFramework")
+    timeseries_logger = get_logger("TimeSeriesFramework")
+    ml_logger = get_logger("MLFramework")
+    physics_logger = get_logger("PhysicsFramework")
+    microstructure_logger = get_logger("MicrostructureFramework")
+    
     main_logger.info("Agent logging system initialized")
     main_logger.info(f"Active loggers: {list(_loggers.keys())}")
+    
+    # Log framework availability
+    try:
+        from .environment import validate_environment
+        env_status = validate_environment()
+        if "advanced_frameworks_status" in env_status:
+            main_logger.log_framework_availability(env_status["advanced_frameworks_status"])
+    except Exception as e:
+        main_logger.warning(f"Could not log framework availability: {e}")
     
     return {
         "main": main_logger,
@@ -257,7 +387,14 @@ def setup_agent_logging():
         "crewai": crewai_logger,
         "adk": adk_logger,
         "risk": risk_logger,
-        "quant": quant_logger
+        "quant": quant_logger,
+        "bayesian": bayesian_logger,
+        "quantlib": quantlib_logger,
+        "portfolio": portfolio_logger,
+        "timeseries": timeseries_logger,
+        "ml": ml_logger,
+        "physics": physics_logger,
+        "microstructure": microstructure_logger
     }
 
 # Export for easy imports

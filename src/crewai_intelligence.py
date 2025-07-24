@@ -26,7 +26,13 @@ from .quant_models import (
     RiskMetrics, 
     ProbabilisticForecast,
     MarketMicrostructure,
-    AdvancedPhysicsModels
+    AdvancedPhysicsModels,
+    # Advanced 5-Phase Frameworks
+    BayesianTradingFramework,
+    QuantLibFinancialEngineering,
+    AdvancedPortfolioOptimization,
+    AdvancedTimeSeriesAnalysis,
+    AdvancedMLTradingFramework
 )
 
 # Initialize logger for this module
@@ -120,9 +126,24 @@ class QuantitativeAnalysisAgent:
     def __init__(self, llm_config: LiteLLMConfig):
         self.llm_config = llm_config
         self.agent = self._create_agent()
+        
+        # Legacy models for backward compatibility
         self.quant_models = QuantitativeModels()
         self.risk_metrics = RiskMetrics()
-        logger.info("Quantitative Analysis Agent initialized with advanced mathematical models")
+        
+        # Advanced 5-Phase Frameworks
+        self.bayesian_framework = BayesianTradingFramework()
+        self.quantlib_framework = QuantLibFinancialEngineering()
+        self.portfolio_framework = AdvancedPortfolioOptimization()
+        self.timeseries_framework = AdvancedTimeSeriesAnalysis()
+        self.ml_framework = AdvancedMLTradingFramework()
+        
+        logger.info("Quantitative Analysis Agent initialized with advanced 5-phase frameworks")
+        logger.info(f"Bayesian available: {self.bayesian_framework.is_available}")
+        logger.info(f"QuantLib available: {self.quantlib_framework.is_available}")
+        logger.info(f"Portfolio optimization available: {self.portfolio_framework.is_available}")
+        logger.info(f"Time series analysis available: {self.timeseries_framework.is_available}")
+        logger.info(f"ML framework available: {self.ml_framework.is_available}")
     
     def _create_agent(self) -> Agent:
         """Create quantitative analysis agent with specialized personality"""
@@ -193,18 +214,117 @@ class QuantitativeAnalysisAgent:
             volumes = np.array([float(candle.get('volume', 0)) for candle in candles])
             returns = np.diff(np.log(prices))
             
-            # 1. Bayesian Probabilistic Forecast
-            logger.log_action("quantitative_analysis", {"step": "bayesian_forecast"}, status="progress")
+            # 1. ADVANCED 5-PHASE QUANTITATIVE ANALYSIS
+            logger.log_action("quantitative_analysis", {"step": "5_phase_analysis"}, status="progress")
             
-            probabilistic_forecast = self.quant_models.bayesian_price_model(
-                prices=prices,
-                lookback=min(252, len(prices)),
-                confidence_levels=[0.68, 0.95, 0.99]
-            )
+            # Convert to pandas for advanced frameworks
+            price_series = pd.Series(prices, index=pd.date_range(start='2020-01-01', periods=len(prices), freq='15T'))
+            volume_series = pd.Series(volumes, index=price_series.index) if len(volumes) > 0 else None
             
-            # 2. Market Regime Detection
-            logger.log_action("quantitative_analysis", {"step": "regime_detection"}, status="progress")
+            advanced_results = {}
             
+            # Phase 1: Bayesian Analysis (Enhanced)
+            if self.bayesian_framework.is_available and len(prices) > 50:
+                try:
+                    bayesian_analysis = self.bayesian_framework.comprehensive_bayesian_analysis(
+                        price_data=price_series,
+                        prediction_horizon=5
+                    )
+                    advanced_results['bayesian'] = bayesian_analysis
+                    logger.info("Advanced Bayesian analysis completed")
+                except Exception as e:
+                    logger.warning(f"Advanced Bayesian analysis failed: {e}")
+                    # Fallback to legacy method
+                    probabilistic_forecast = self.quant_models.bayesian_price_model(
+                        prices=prices,
+                        lookback=min(252, len(prices)),
+                        confidence_levels=[0.68, 0.95, 0.99]
+                    )
+                    advanced_results['bayesian_legacy'] = probabilistic_forecast
+            
+            # Phase 2: QuantLib Financial Engineering
+            if self.quantlib_framework.is_available:
+                try:
+                    current_vol = np.std(returns) * np.sqrt(252 * 24 * 4) if len(returns) > 20 else 0.6  # Annualized for 15min
+                    quantlib_analysis = self.quantlib_framework.comprehensive_derivatives_analysis(
+                        spot_price=float(prices[-1]),
+                        volatility=current_vol,
+                        risk_free_rate=0.05,
+                        time_to_expiry=7/365  # 1 week
+                    )
+                    advanced_results['quantlib'] = quantlib_analysis
+                    logger.info("QuantLib derivatives analysis completed")
+                except Exception as e:
+                    logger.warning(f"QuantLib analysis failed: {e}")
+            
+            # Phase 3: Advanced Portfolio Optimization
+            if self.portfolio_framework.is_available and len(returns) > 50:
+                try:
+                    # Create multi-asset returns for portfolio analysis
+                    returns_df = pd.DataFrame({
+                        'BTC': returns,
+                        'Cash': np.zeros(len(returns))
+                    })
+                    portfolio_analysis = self.portfolio_framework.comprehensive_portfolio_analysis(
+                        asset_returns=returns_df,
+                        current_weights=np.array([0.7, 0.3])  # Example allocation
+                    )
+                    advanced_results['portfolio'] = portfolio_analysis
+                    logger.info("Advanced portfolio optimization completed")
+                except Exception as e:
+                    logger.warning(f"Portfolio optimization failed: {e}")
+            
+            # Phase 4: Advanced Time Series & GARCH Analysis
+            if self.timeseries_framework.is_available and len(returns) > 100:
+                try:
+                    returns_series = pd.Series(returns, index=price_series.index[1:])
+                    garch_analysis = self.timeseries_framework.comprehensive_garch_analysis(
+                        returns=returns_series,
+                        forecast_horizon=5
+                    )
+                    advanced_results['timeseries'] = garch_analysis
+                    logger.info("Advanced GARCH time series analysis completed")
+                except Exception as e:
+                    logger.warning(f"Time series analysis failed: {e}")
+            
+            # Phase 5: Machine Learning & AI Analysis
+            if self.ml_framework.is_available and len(prices) > 100:
+                try:
+                    ml_analysis = self.ml_framework.comprehensive_ml_analysis(
+                        price_data=price_series,
+                        volume_data=volume_series,
+                        prediction_horizon=3
+                    )
+                    advanced_results['ml'] = ml_analysis
+                    logger.info("Advanced ML analysis completed")
+                except Exception as e:
+                    logger.warning(f"ML analysis failed: {e}")
+            
+            # Legacy analysis for backward compatibility and fallback
+            logger.log_action("quantitative_analysis", {"step": "legacy_analysis"}, status="progress")
+            
+            # Bayesian forecast (legacy)
+            if 'bayesian' not in advanced_results:
+                probabilistic_forecast = self.quant_models.bayesian_price_model(
+                    prices=prices,
+                    lookback=min(252, len(prices)),
+                    confidence_levels=[0.68, 0.95, 0.99]
+                )
+            else:
+                # Extract from advanced Bayesian analysis
+                bayesian_pred = advanced_results['bayesian'].get('hierarchical_prediction', {})
+                probabilistic_forecast = type('obj', (object,), {
+                    'mean': bayesian_pred.get('predicted_mean', prices[-1]),
+                    'std': bayesian_pred.get('predicted_std', np.std(returns) * prices[-1]),
+                    'probability_up': bayesian_pred.get('probability_increase', 0.5),
+                    'probability_down': 1 - bayesian_pred.get('probability_increase', 0.5),
+                    'confidence_intervals': bayesian_pred.get('confidence_intervals', {}),
+                    'expected_return': bayesian_pred.get('expected_return', 0.001),
+                    'upside_potential': bayesian_pred.get('upside_potential', 0.02),
+                    'downside_risk': bayesian_pred.get('downside_risk', 0.02)
+                })
+            
+            # Regime detection
             regime_probs, regime_stats = self.quant_models.regime_detection_hmm(
                 returns=returns,
                 n_regimes=3
@@ -229,7 +349,7 @@ class QuantitativeAnalysisAgent:
             # 5. Market Microstructure Analysis
             estimated_spread = MarketMicrostructure.estimate_bid_ask_spread(prices, volumes)
             
-            # Prepare quantitative summary for AI agent
+            # Prepare comprehensive quantitative summary including advanced 5-phase analysis
             quant_summary = {
                 "probabilistic_forecast": {
                     "expected_price": probabilistic_forecast.mean,
@@ -261,6 +381,15 @@ class QuantitativeAnalysisAgent:
                 "market_structure": {
                     "estimated_spread": estimated_spread,
                     "recent_volatility": np.std(returns[-20:]) * np.sqrt(252) if len(returns) >= 20 else 0
+                },
+                # ADVANCED 5-PHASE ANALYSIS RESULTS
+                "advanced_frameworks": {
+                    "bayesian_available": self.bayesian_framework.is_available,
+                    "quantlib_available": self.quantlib_framework.is_available,
+                    "portfolio_available": self.portfolio_framework.is_available,
+                    "timeseries_available": self.timeseries_framework.is_available,
+                    "ml_available": self.ml_framework.is_available,
+                    "analysis_results": advanced_results
                 }
             }
             
@@ -507,10 +636,21 @@ class AdvancedRiskManagementAgent:
     def __init__(self, llm_config: LiteLLMConfig):
         self.llm_config = llm_config
         self.agent = self._create_agent()
+        
+        # Legacy models for backward compatibility
         self.quant_models = QuantitativeModels()
         self.risk_metrics = RiskMetrics()
         self.physics_models = AdvancedPhysicsModels()
-        logger.info("Advanced Risk Management Agent initialized with quantitative risk models and physics-based analysis")
+        
+        # Advanced 5-Phase Frameworks
+        self.bayesian_framework = BayesianTradingFramework()
+        self.quantlib_framework = QuantLibFinancialEngineering()
+        self.portfolio_framework = AdvancedPortfolioOptimization()
+        self.timeseries_framework = AdvancedTimeSeriesAnalysis()
+        self.ml_framework = AdvancedMLTradingFramework()
+        
+        logger.info("Advanced Risk Management Agent initialized with 5-phase quantitative frameworks")
+        logger.info(f"Advanced frameworks availability - Bayesian: {self.bayesian_framework.is_available}, QuantLib: {self.quantlib_framework.is_available}, Portfolio: {self.portfolio_framework.is_available}, TimeSeries: {self.timeseries_framework.is_available}, ML: {self.ml_framework.is_available}")
     
     def _create_agent(self) -> Agent:
         """Create advanced risk management agent with specialized expertise"""
@@ -717,6 +857,89 @@ class AdvancedRiskManagementAgent:
                     'combined_physics_risk_score': 0.5,
                     'risk_amplification_factor': 1.25
                 }
+            
+            # 5. ADVANCED 5-PHASE QUANTITATIVE ANALYSIS INTEGRATION
+            logger.log_action("advanced_risk_assessment", {"step": "5_phase_integration"}, status="progress")
+            
+            advanced_analysis = {}
+            
+            # Phase 1: Bayesian Analysis
+            if self.bayesian_framework.is_available:
+                try:
+                    # Convert price data to pandas series for Bayesian analysis
+                    if isinstance(price_data, np.ndarray) and len(price_data) > 20:
+                        price_series = pd.Series(price_data)
+                        bayesian_results = self.bayesian_framework.comprehensive_bayesian_analysis(
+                            price_data=price_series,
+                            prediction_horizon=5
+                        )
+                        advanced_analysis['bayesian'] = bayesian_results
+                        logger.info("Bayesian analysis integrated successfully")
+                except Exception as e:
+                    logger.warning(f"Bayesian analysis failed: {e}")
+            
+            # Phase 2: QuantLib Financial Engineering  
+            if self.quantlib_framework.is_available:
+                try:
+                    quantlib_results = self.quantlib_framework.comprehensive_derivatives_analysis(
+                        spot_price=float(price_data[-1]) if len(price_data) > 0 else 43000,
+                        volatility=returns_std * np.sqrt(252),  # Annualized volatility
+                        risk_free_rate=0.05,
+                        time_to_expiry=30/365
+                    )
+                    advanced_analysis['quantlib'] = quantlib_results  
+                    logger.info("QuantLib derivatives analysis integrated successfully")
+                except Exception as e:
+                    logger.warning(f"QuantLib analysis failed: {e}")
+            
+            # Phase 3: Advanced Portfolio Optimization
+            if self.portfolio_framework.is_available:
+                try:
+                    # Create synthetic multi-asset data for portfolio analysis
+                    portfolio_results = self.portfolio_framework.comprehensive_portfolio_analysis(
+                        asset_returns=pd.DataFrame({
+                            'BTC': simulated_returns,
+                            'Cash': np.zeros(len(simulated_returns))
+                        }),
+                        current_weights=np.array([current_exposure, 1-current_exposure])
+                    )
+                    advanced_analysis['portfolio'] = portfolio_results
+                    logger.info("Advanced portfolio optimization integrated successfully")
+                except Exception as e:
+                    logger.warning(f"Portfolio optimization failed: {e}")
+            
+            # Phase 4: Advanced Time Series Analysis
+            if self.timeseries_framework.is_available:
+                try:
+                    if isinstance(price_data, np.ndarray) and len(price_data) > 50:
+                        price_series = pd.Series(price_data)
+                        returns_series = price_series.pct_change().dropna()
+                        garch_results = self.timeseries_framework.comprehensive_garch_analysis(
+                            returns=returns_series,
+                            forecast_horizon=5
+                        )
+                        advanced_analysis['timeseries'] = garch_results
+                        logger.info("GARCH time series analysis integrated successfully")
+                except Exception as e:
+                    logger.warning(f"Time series analysis failed: {e}")
+            
+            # Phase 5: Machine Learning & AI Analysis
+            if self.ml_framework.is_available:
+                try:
+                    if isinstance(price_data, np.ndarray) and len(price_data) > 100:
+                        price_series = pd.Series(price_data, 
+                                               index=pd.date_range(start='2020-01-01', periods=len(price_data), freq='D'))
+                        ml_results = self.ml_framework.comprehensive_ml_analysis(
+                            price_data=price_series,
+                            prediction_horizon=5
+                        )
+                        advanced_analysis['ml'] = ml_results
+                        logger.info("Machine Learning analysis integrated successfully")
+                except Exception as e:
+                    logger.warning(f"ML analysis failed: {e}")
+            
+            # Integrate advanced analysis into risk metrics
+            risk_adjustments = self._integrate_advanced_risk_factors(advanced_analysis)
             
             # 5. Stress Testing
             logger.log_action("advanced_risk_assessment", {"step": "stress_testing"}, status="progress")
@@ -976,6 +1199,111 @@ class AdvancedRiskManagementAgent:
             )
             return self._fallback_risk_assessment(signal_data, portfolio_data)
     
+    def _integrate_advanced_risk_factors(self, advanced_analysis: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Integrate risk factors from all 5-phase advanced frameworks
+        
+        Args:
+            advanced_analysis: Results from all advanced frameworks
+            
+        Returns:
+            Dictionary of risk adjustment factors
+        """
+        risk_adjustments = {
+            'bayesian_uncertainty': 1.0,
+            'quantlib_volatility': 1.0,
+            'portfolio_correlation': 1.0,
+            'garch_volatility': 1.0,
+            'ml_prediction_uncertainty': 1.0,
+            'combined_risk_multiplier': 1.0
+        }
+        
+        try:
+            # Phase 1: Bayesian Risk Factors
+            if 'bayesian' in advanced_analysis:
+                bayesian_results = advanced_analysis['bayesian']
+                if 'mcmc_diagnostics' in bayesian_results:
+                    # Higher R-hat means more uncertainty
+                    r_hat = bayesian_results['mcmc_diagnostics'].get('r_hat', 1.0)
+                    risk_adjustments['bayesian_uncertainty'] = min(r_hat, 1.5)  # Cap at 1.5x
+                
+                if 'model_comparison' in bayesian_results:
+                    # Lower model evidence means higher uncertainty
+                    evidence_weight = bayesian_results['model_comparison'].get('evidence_weight', 0.5)
+                    risk_adjustments['bayesian_uncertainty'] *= (2.0 - evidence_weight)
+            
+            # Phase 2: QuantLib Risk Factors  
+            if 'quantlib' in advanced_analysis:
+                quantlib_results = advanced_analysis['quantlib']
+                if 'option_greeks' in quantlib_results:
+                    # High vega means high volatility sensitivity
+                    vega = quantlib_results['option_greeks'].get('vega', 0)
+                    gamma = quantlib_results['option_greeks'].get('gamma', 0)
+                    risk_adjustments['quantlib_volatility'] = 1.0 + abs(vega) * 0.1 + abs(gamma) * 0.05
+            
+            # Phase 3: Portfolio Risk Factors
+            if 'portfolio' in advanced_analysis:
+                portfolio_results = advanced_analysis['portfolio']
+                if 'risk_metrics' in portfolio_results:
+                    # Higher portfolio volatility = higher risk
+                    portfolio_vol = portfolio_results['risk_metrics'].get('volatility', 0.2)
+                    risk_adjustments['portfolio_correlation'] = 1.0 + portfolio_vol * 2.0
+                
+                if 'optimization' in portfolio_results:
+                    # Lower diversification ratio = higher concentration risk
+                    diversification = portfolio_results['optimization'].get('diversification_ratio', 0.8)
+                    risk_adjustments['portfolio_correlation'] *= (2.0 - diversification)
+            
+            # Phase 4: GARCH Time Series Risk Factors
+            if 'timeseries' in advanced_analysis:
+                garch_results = advanced_analysis['timeseries']
+                if 'volatility_forecast' in garch_results:
+                    # Higher forecasted volatility = higher risk
+                    forecasted_vol = garch_results['volatility_forecast'].get('mean_forecast', 0.02)
+                    risk_adjustments['garch_volatility'] = 1.0 + forecasted_vol * 10.0  # Scale up
+                
+                if 'regime_detection' in garch_results:
+                    # High volatility regime = higher risk
+                    current_regime = garch_results['regime_detection'].get('current_regime', 1)
+                    if current_regime == 'high_volatility':
+                        risk_adjustments['garch_volatility'] *= 1.3
+            
+            # Phase 5: ML Prediction Uncertainty
+            if 'ml' in advanced_analysis:
+                ml_results = advanced_analysis['ml']
+                if 'uncertainty_analysis' in ml_results:
+                    uncertainty = ml_results['uncertainty_analysis']
+                    model_disagreement = uncertainty.get('model_disagreement', 0.1)
+                    epistemic_uncertainty = uncertainty.get('epistemic_uncertainty', 0.1)
+                    risk_adjustments['ml_prediction_uncertainty'] = 1.0 + (model_disagreement + epistemic_uncertainty) * 5.0
+                
+                if 'ensemble_prediction' in ml_results:
+                    # Higher prediction standard deviation = higher uncertainty
+                    pred_std = ml_results['ensemble_prediction'].get('prediction_std', 0.02)
+                    risk_adjustments['ml_prediction_uncertainty'] *= (1.0 + pred_std * 20.0)
+            
+            # Calculate combined risk multiplier
+            individual_adjustments = [
+                risk_adjustments['bayesian_uncertainty'],
+                risk_adjustments['quantlib_volatility'], 
+                risk_adjustments['portfolio_correlation'],
+                risk_adjustments['garch_volatility'],
+                risk_adjustments['ml_prediction_uncertainty']
+            ]
+            
+            # Use geometric mean to combine risk factors (prevents extreme amplification)
+            combined_multiplier = np.power(np.prod(individual_adjustments), 1.0 / len(individual_adjustments))
+            risk_adjustments['combined_risk_multiplier'] = min(combined_multiplier, 2.0)  # Cap at 2x
+            
+            logger.info(f"Advanced risk integration: Combined multiplier = {combined_multiplier:.2f}")
+            
+        except Exception as e:
+            logger.error(f"Advanced risk factor integration failed: {e}")
+            # Use conservative defaults
+            risk_adjustments = {k: 1.2 for k in risk_adjustments.keys()}  # 20% risk increase
+        
+        return risk_adjustments
+    
     def _fallback_risk_assessment(self, signal_data: Dict[str, Any], portfolio_data: Dict[str, Any]) -> Dict[str, Any]:
         """Conservative fallback when risk models fail"""
         return {
@@ -1088,18 +1416,21 @@ class CrewAIIntelligenceSystem:
             status="completed"
         )
     
-    def generate_trading_signal(self, market_data: Dict[str, Any], portfolio_data: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_trading_signal(self, market_data: Dict[str, Any], portfolio_data: Dict[str, Any], advanced_analysis: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Generate comprehensive trading signal using advanced quantitative analysis
+        Generate comprehensive trading signal using advanced quantitative analysis and 5-phase frameworks
         
         Process:
         1. Advanced quantitative market analysis with probabilistic models
-        2. Comprehensive risk assessment with mathematical backing
-        3. Signal synthesis and final recommendation
-        4. Confidence scoring and uncertainty quantification
+        2. Integration of 5-phase framework analysis results
+        3. Comprehensive risk assessment with mathematical backing
+        4. Signal synthesis and final recommendation
+        5. Confidence scoring and uncertainty quantification
         """
         
         logger.info(f"Generating advanced trading signal for {market_data.get('symbol', 'BTC')}")
+        if advanced_analysis and advanced_analysis.get('frameworks_used'):
+            logger.info(f"Using advanced analysis from {len(advanced_analysis.get('frameworks_used', []))} frameworks")
         
         signal_start_time = time.time()
         

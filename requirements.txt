@@ -18,20 +18,20 @@ aiohttp>=3.9.0
 redis>=5.0.0
 
 # Bayesian and Probabilistic
-# pymc>=5.10.0  # Optional - commented out due to complexity
-# arviz>=0.17.0  # Optional
+pymc>=5.10.0  # Optional - commented out due to complexity
+arviz>=0.17.0  # Optional
 
 # Financial Data and Trading
 ccxt>=4.4.65
 yfinance>=0.2.28
-# quantlib>=1.32  # Optional - complex installation
+quantlib>=1.32  # Optional - complex installation
 
 # Risk and Portfolio Optimization
 cvxpy>=1.4.0
-# pypfopt>=1.5.5  # Optional
+pypfopt>=1.5.5  # Optional
 
 # Time Series Analysis
-# arch>=6.2.0  # Optional - for GARCH models
+arch>=6.2.0  # Optional - for GARCH models
 
 # Monitoring and Visualization
 prometheus-client>=0.19.0
