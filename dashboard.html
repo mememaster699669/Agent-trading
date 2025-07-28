@@ -640,6 +640,8 @@
     </div>
 
     <script>
+        // the symbol to analyze
+        const symbol = 'BTC';
         // Dashboard state
         let dashboardData = {
             btcPrice: 0,
@@ -758,7 +760,7 @@
         // Fetch all advanced framework analytics
         function fetchAdvancedAnalytics() {
             // Bayesian Analysis
-            fetch('/api/bayesian-analysis')
+            fetch(`/api/bayesian-analysis/${symbol}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -774,7 +776,7 @@
                 });
 
             // QuantLib Derivatives
-            fetch('/api/quantlib-derivatives')
+            fetch(`/api/quantlib-derivatives/${symbol}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -790,7 +792,7 @@
                 });
 
             // Portfolio Optimization
-            fetch('/api/portfolio-optimization')
+            fetch(`/api/portfolio-optimization`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -806,7 +808,7 @@
                 });
 
             // GARCH Analysis
-            fetch('/api/garch-analysis')
+            fetch(`/api/garch-analysis/${symbol}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -822,7 +824,7 @@
                 });
 
             // ML Predictions
-            fetch('/api/ml-predictions')
+            fetch(`/api/ml-predictions/${symbol}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -838,7 +840,7 @@
                 });
 
             // Sentiment Analysis
-            fetch('/api/sentiment-analysis')
+            fetch(`/api/sentiment-analysis/${symbol}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -854,7 +856,7 @@
                 });
 
             // Physics Risk Analysis
-            fetch('/api/physics-risk')
+            fetch(`/api/physics-risk`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -870,7 +872,7 @@
                 });
 
             // Comprehensive Analysis
-            fetch('/api/comprehensive-analysis')
+            fetch(`/api/comprehensive-analysis/${symbol}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
@@ -1134,17 +1136,28 @@
         // Auto-refresh functionality
         function startAutoRefresh() {
             const autoRefreshCheckbox = document.getElementById('autoRefresh');
-            
+            const refreshBtn = document.querySelector('.refresh-btn');
+            const statusEl = document.getElementById('systemStatus');
+            let refreshIconInterval;
+
             function updateAutoRefresh() {
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
                 }
-                
+                if (refreshIconInterval) {
+                    clearInterval(refreshIconInterval);
+                }
                 if (autoRefreshCheckbox.checked) {
                     autoRefreshInterval = setInterval(refreshData, 5000); // Refresh every 5 seconds
+                    // Animate refresh button
+                    refreshIconInterval = setInterval(() => {
+                        refreshBtn.innerHTML = '🔄 Refresh <span style="opacity:0.5;">(Auto)</span>';
+                        setTimeout(() => { refreshBtn.innerHTML = '🔄 Refresh'; }, 1000);
+                    }, 5000);
+                } else {
+                    refreshBtn.innerHTML = '🔄 Refresh';
                 }
             }
-            
             autoRefreshCheckbox.addEventListener('change', updateAutoRefresh);
             updateAutoRefresh();
         }

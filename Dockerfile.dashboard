@@ -22,13 +22,16 @@ COPY requirements.txt .
 # Install core dependencies first (dashboard-focused)
 RUN pip install --upgrade pip setuptools wheel
 
+# Install core dependencies first (most stable packages)
 RUN pip install --no-cache-dir \
-    "flask==3.0.0" \
-    "flask-cors==4.0.0" \
-    "gunicorn==21.2.0" \
-    "websockets==12.0" \
-    "pandas>=1.5.0,<3.0.0" \
     "numpy>=1.21.0,<2.0.0" \
+    "flask>=2.3.0,<4.0.0" \
+    "flask-cors>=4.0.0,<5.0.0" \
+    "pandas>=1.5.0,<3.0.0" \
+    "scipy>=1.9.0,<2.0.0" \
+    "scikit-learn>=1.2.0,<2.0.0" \
+    "matplotlib>=3.5.0,<4.0.0" \
+    "seaborn>=0.12.0,<1.0.0" \
     "plotly>=5.15.0,<6.0.0" \
     "yfinance>=0.2.0,<1.0.0" \
     "requests>=2.25.0,<3.0.0" \
@@ -36,10 +39,52 @@ RUN pip install --no-cache-dir \
     "sqlalchemy>=1.4.0,<3.0.0" \
     "psycopg2-binary>=2.9.0,<3.0.0" \
     "redis>=4.5.0,<5.0.0" \
+    "celery>=5.3.0,<6.0.0" \
+    "gunicorn>=21.0.0,<22.0.0" \
+    "ta>=0.10.0,<1.0.0" \
     "ccxt>=4.0.0,<5.0.0" \
-    "crewai>=0.28.0,<1.0.0" \
+    "statsmodels>=0.14.0,<1.0.0" \
+    "arch>=5.6.0,<7.0.0" \
+    "fastapi>=0.100.0,<1.0.0" \
+    "uvicorn>=0.20.0,<1.0.0" \
+    "websockets>=11.0.0,<12.0.0" \
+    "prometheus-client>=0.16.0,<1.0.0" \
+    "structlog>=23.0.0,<24.0.0" \
+    "pytest>=7.4.0,<8.0.0" \
+    "pytest-asyncio>=0.21.0,<1.0.0"
+
+# Install CrewAI and other essential packages that might have failed
+RUN pip install --no-cache-dir \
+    "crewai>=0.60.0,<0.64.0" \
+    "crewai[tools]>=0.60.0,<0.64.0" \
+    "langchain>=0.1.0,<1.0.0" \
+    "langchain-community>=0.0.1,<1.0.0" \
+    "langchain-openai>=0.0.1,<1.0.0" \
     "openai>=1.0.0,<2.0.0" \
-    "litellm>=1.0.0,<2.0.0"
+    "quantlib>=1.31,<2.0" \
+    "PyPortfolioOpt>=1.5.0,<2.0.0" \
+    "tf-keras>=2.14.0,<3.0.0" \
+    "tensorflow>=2.14.0,<3.0.0" \
+    "torch>=2.0.0,<3.0.0" \
+    "transformers>=4.30.0,<5.0.0"
+
+# Install missing advanced ML and quant finance dependencies
+RUN pip install --no-cache-dir \
+    "hmmlearn>=0.3.0,<1.0.0" \
+    "xgboost>=1.7.0,<3.0.0" \
+    "lightgbm>=3.3.0,<5.0.0" \
+    "stable-baselines3>=2.0.0,<3.0.0" \
+    "pymc>=5.0.0,<6.0.0" \
+    "arviz>=0.15.0,<1.0.0" \
+    "pytensor>=2.8.0,<3.0.0" \
+    "textblob>=0.17.0,<1.0.0" \
+    "spacy>=3.6.0,<4.0.0" \
+    "gymnasium>=0.28.0,<1.0.0"
+
+# Install compatible ChromaDB version (for CrewAI embedchain)
+RUN pip install --no-cache-dir \
+    "chromadb>=0.4.0,<0.5.0" \
+    "embedchain>=0.1.0,<1.0.0"
 
 # Try to install remaining requirements, ignoring failures for problematic packages
 RUN pip install --no-cache-dir -r requirements.txt || echo "Some packages failed to install - continuing with core dependencies"
@@ -108,4 +153,4 @@ HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8080/api/health || exit 1
 
 # Start the dashboard with gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "--timeout", "60", "--access-logfile", "-", "dashboard_api:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "180", "--access-logfile", "-", "--preload=false", "dashboard_api:app"]

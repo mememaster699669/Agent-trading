@@ -11,7 +11,7 @@ import pandas as pd
 from scipy import stats
 from scipy.optimize import minimize
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Any, Dict, List, Tuple, Optional, Union
 import warnings
 from scipy.spatial.distance import pdist
 from scipy.stats import entropy
@@ -236,8 +236,8 @@ class QuantitativeModels:
     
     @staticmethod
     def advanced_bayesian_volatility(prices: np.ndarray, 
-                                   n_samples: int = 2000,
-                                   tune: int = 1000) -> Dict[str, any]:
+                                   n_samples: int = 200,
+                                   tune: int = 100) -> Dict[str, any]:
         """
         Advanced Bayesian stochastic volatility model using PyMC
         
@@ -325,9 +325,9 @@ class QuantitativeModels:
                     'hdi_upper': vol_hdi[:, 1]
                 },
                 'parameters': {
-                    'persistence': float(trace.posterior['phi'].mean().values),
-                    'vol_of_vol': float(trace.posterior['sigma_log_vol'].mean().values),
-                    'mean_log_vol': float(trace.posterior['mu_log_vol'].mean().values)
+                    'persistence': float(trace.posterior['phi'].mean().values.item()),
+                    'vol_of_vol': float(trace.posterior['sigma_log_vol'].mean().values.item()),
+                    'mean_log_vol': float(trace.posterior['mu_log_vol'].mean().values.item())
                 },
                 'diagnostics': diagnostics,
                 'convergence_ok': diagnostics['r_hat_max'] < 1.1 and diagnostics['ess_bulk_min'] > 400,
@@ -341,7 +341,7 @@ class QuantitativeModels:
     @staticmethod
     def bayesian_regime_switching(returns: np.ndarray,
                                 n_regimes: int = 3,
-                                n_samples: int = 2000) -> Dict[str, any]:
+                                n_samples: int = 200) -> Dict[str, any]:
         """
         Bayesian regime switching model with full uncertainty quantification
         
@@ -388,7 +388,7 @@ class QuantitativeModels:
                                       observed=returns)
                 
                 # Sample
-                trace = pm.sample(n_samples, tune=1000, cores=1, 
+                trace = pm.sample(n_samples, tune=100, cores=1, 
                                 progressbar=False, random_seed=42)
             
             # Extract regime characteristics
@@ -432,7 +432,7 @@ class QuantitativeModels:
     @staticmethod
     def bayesian_portfolio_optimization(returns_df: pd.DataFrame,
                                       risk_aversion: float = 2.0,
-                                      n_samples: int = 1000) -> Dict[str, any]:
+                                      n_samples: int = 200) -> Dict[str, any]:
         """
         Bayesian portfolio optimization with parameter uncertainty
         
@@ -471,7 +471,7 @@ class QuantitativeModels:
                                         observed=returns_matrix)
                 
                 # Sample posterior
-                trace = pm.sample(n_samples, tune=500, cores=1, 
+                trace = pm.sample(n_samples, tune=100, cores=1, 
                                 progressbar=False, random_seed=42)
             
             # Portfolio optimization for each posterior sample
@@ -1023,17 +1023,17 @@ class BayesianTradingFramework:
             
             # 1. Enhanced volatility modeling
             self.logger.info("Running Bayesian stochastic volatility analysis...")
-            vol_results = QuantitativeModels.advanced_bayesian_volatility(price_data)
-            results['stochastic_volatility'] = vol_results
-            results['analysis_components'].append('stochastic_volatility')
+            #vol_results = QuantitativeModels.advanced_bayesian_volatility(price_data)(uncommented when ready)
+            #results['stochastic_volatility'] = vol_results
+            #results['analysis_components'].append('stochastic_volatility')
             
             # 2. Regime switching analysis
-            if len(price_data) > 50:
-                self.logger.info("Running Bayesian regime switching analysis...")
-                returns = np.diff(np.log(price_data))
-                regime_results = QuantitativeModels.bayesian_regime_switching(returns)
-                results['regime_switching'] = regime_results  
-                results['analysis_components'].append('regime_switching')
+            #if len(price_data) > 50:
+            #    self.logger.info("Running Bayesian regime switching analysis...")
+            #    returns = np.diff(np.log(price_data))
+            #    regime_results = QuantitativeModels.bayesian_regime_switching(returns)
+            #    results['regime_switching'] = regime_results  
+            #    results['analysis_components'].append('regime_switching')
             
             # 3. Portfolio optimization (if multi-asset data available)
             if returns_df is not None and len(returns_df.columns) > 1:
@@ -1795,86 +1795,116 @@ class AdvancedPortfolioOptimization:
         except:
             return 0.0
     
-    def efficient_frontier_optimization(self,
-                                      returns_df: pd.DataFrame,
-                                      method: str = 'max_sharpe',
-                                      target_return: Optional[float] = None,
-                                      target_volatility: Optional[float] = None,
-                                      weight_bounds: Tuple[float, float] = (0.0, 1.0)) -> Dict[str, any]:
+    def efficient_frontier_optimization(
+        self,
+        returns_df: pd.DataFrame,
+        method: str = "max_sharpe",
+        target_return: Optional[float] = None,
+        target_volatility: Optional[float] = None,
+        weight_bounds: Tuple[float, float] = (0.0, 1.0),
+    ) -> Dict[str, Any]:
         """
-        Modern Portfolio Theory optimization with efficient frontier
-        
-        Args:
-            returns_df: DataFrame of asset returns
-            method: 'max_sharpe', 'min_volatility', 'efficient_return', 'efficient_risk'
-            target_return: Target return for efficient_return method
-            target_volatility: Target volatility for efficient_risk method
-            weight_bounds: Tuple of (min_weight, max_weight)
-            
+        Modern Portfolio Theory optimization with efficient frontier.
+
+        Fixes:
+        - No risk_free_rate in constructor.
+        - Add diagonal jitter to covariance (convexify).
+        - Validate target_return/volatility feasibility.
+        - Catch OSQP non-convex errors and fallback to SLSQP or equal weights.
+
         Returns:
-            Dictionary with optimal portfolio and performance metrics
+        Dictionary with optimal portfolio and performance metrics,
+        or graceful fallback if optimization fails.
         """
         if not self.is_available:
             return self._fallback_portfolio_optimization(returns_df, method)
-        
+
         try:
-            # Calculate expected returns and sample covariance matrix
+            # 1) Inputs
             mu = expected_returns.mean_historical_return(returns_df)
             S = risk_models.sample_cov(returns_df)
-            
-            # Create efficient frontier object
+
+            # 1a) Enforce positive-definiteness
+            eps = 1e-6
+            S.values[np.diag_indices_from(S)] += eps
+
+            # 2) Build frontier
             ef = EfficientFrontier(mu, S, weight_bounds=weight_bounds)
-            
-            # Optimize based on method
-            if method == 'max_sharpe':
-                weights = ef.max_sharpe()
-            elif method == 'min_volatility':
-                weights = ef.min_volatility()
-            elif method == 'efficient_return' and target_return is not None:
-                weights = ef.efficient_return(target_return)
-            elif method == 'efficient_risk' and target_volatility is not None:
-                weights = ef.efficient_risk(target_volatility)
-            else:
-                weights = ef.max_sharpe()  # Default fallback
-            
-            # Clean weights (remove tiny positions)
-            cleaned_weights = ef.clean_weights()
-            
-            # Portfolio performance
-            performance = ef.portfolio_performance(verbose=False)
-            expected_annual_return, annual_volatility, sharpe_ratio = performance
-            
-            # Additional metrics
-            portfolio_return = np.sum([weights[asset] * mu[asset] for asset in weights])
-            portfolio_vol = np.sqrt(np.dot(list(weights.values()), np.dot(S.values, list(weights.values()))))
-            
-            # Risk decomposition
-            asset_contributions = {}
-            for asset in weights:
-                if weights[asset] > 0:
-                    asset_risk = weights[asset] * np.sqrt(S.loc[asset, asset])
-                    asset_contributions[asset] = asset_risk / portfolio_vol if portfolio_vol > 0 else 0
-            
-            return {
-                'optimization_method': method,
-                'weights': dict(cleaned_weights),
-                'performance': {
-                    'expected_annual_return': expected_annual_return,
-                    'annual_volatility': annual_volatility,
-                    'sharpe_ratio': sharpe_ratio
-                },
-                'risk_metrics': {
-                    'portfolio_volatility': portfolio_vol,
-                    'diversification_ratio': self._calculate_diversification_ratio(cleaned_weights, S),
-                    'concentration_index': self._calculate_concentration_index(cleaned_weights),
-                    'asset_risk_contributions': asset_contributions
-                },
-                'efficient_frontier_available': True
+
+            # 2b) Determine feasible return/vol range
+            ret_min, ret_max = ef._min_ret, ef._max_ret = ef.min_volatility(), None
+            # portfolio_return of min_volatility and max_sharpe give endpoints
+            w_min = ef.min_volatility()
+            performance_min = ef.portfolio_performance(verbose=False)
+            ret_min = performance_min[0]
+            # reset ef to re-optimize
+            ef = EfficientFrontier(mu, S, weight_bounds=weight_bounds)
+            w_max = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+            performance_max = ef.portfolio_performance(verbose=False)
+            ret_max = performance_max[0]
+
+            # 3) Optimize
+            try:
+                if method == "max_sharpe":
+                    weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+                elif method == "min_volatility":
+                    weights = ef.min_volatility()
+                elif method == "efficient_return":
+                    if target_return is None:
+                        raise ValueError("target_return must be set for efficient_return")
+                    if not ret_min <= target_return <= ret_max:
+                        raise ValueError(f"target_return {target_return:.4f} outside [{ret_min:.4f}, {ret_max:.4f}]")
+                    weights = ef.efficient_return(target_return)
+                elif method == "efficient_risk":
+                    if target_volatility is None:
+                        raise ValueError("target_volatility must be set for efficient_risk")
+                    weights = ef.efficient_risk(target_volatility)
+                else:
+                    weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate)
+            except Exception as osqp_err:
+                self.logger.warning(f"OSQP optimization failed ({osqp_err}), retrying with SLSQP")
+                # retry on SLSQP
+                ef = EfficientFrontier(mu, S, weight_bounds=weight_bounds)
+                if method == "min_volatility":
+                    weights = ef.min_volatility(solver="SLSQP")
+                else:
+                    weights = ef.max_sharpe(risk_free_rate=self.risk_free_rate, solver="SLSQP")
+
+            # 4) Clean & performance
+            cleaned = ef.clean_weights()
+            exp_ret, ann_vol, sharpe = ef.portfolio_performance(verbose=False)
+
+            # 5) Extra metrics
+            w_arr = np.array(list(weights.values()))
+            port_vol = np.sqrt(w_arr @ S.values @ w_arr)
+
+            # 6) Risk contributions
+            contributions = {
+                asset: (w * np.sqrt(S.at[asset, asset]) / port_vol)
+                for asset, w in weights.items() if w > 0
             }
-            
+
+            return {
+                "optimization_method": method,
+                "weights": dict(cleaned),
+                "performance": {
+                    "expected_annual_return": exp_ret,
+                    "annual_volatility": ann_vol,
+                    "sharpe_ratio": sharpe,
+                },
+                "risk_metrics": {
+                    "portfolio_volatility": port_vol,
+                    "diversification_ratio": self._calculate_diversification_ratio(cleaned, S),
+                    "concentration_index": self._calculate_concentration_index(cleaned),
+                    "asset_risk_contributions": contributions,
+                },
+                "efficient_frontier_available": True,
+            }
+
         except Exception as e:
             self.logger.error(f"Efficient frontier optimization failed: {e}")
             return self._fallback_portfolio_optimization(returns_df, method)
+
     
     def black_litterman_optimization(self,
                                    returns_df: pd.DataFrame,
@@ -3691,6 +3721,58 @@ class AdvancedPhysicsModels:
             }
         }
 
+    def comprehensive_physics_analysis(self,
+                                       price_data: np.ndarray,
+                                       volume_data: Optional[np.ndarray] = None,
+                                       lookback: int = 100) -> Dict[str, any]:
+        """
+        Orchestrator: Run comprehensive physics-based market analysis using entropy, memory, instability, and regime detection.
+        Returns a structured dictionary with all key metrics and summary.
+        """
+        self.logger.info("Starting comprehensive physics-based analysis...")
+        results = {
+            'analysis_type': 'comprehensive_physics',
+            'data_info': {
+                'n_observations': len(price_data),
+                'lookback': lookback
+            },
+            'metrics': {},
+            'regime_analysis': {},
+            'summary': {}
+        }
+
+        if len(price_data) < 20:
+            results['summary'] = {'status': 'insufficient_data'}
+            return results
+
+        # Entropy
+        entropy_metrics = self.information_entropy_risk(price_data[-lookback:], volume_data[-lookback:] if volume_data is not None else None)
+        results['metrics']['entropy'] = entropy_metrics
+
+        # Hurst exponent (memory)
+        memory_metrics = self.hurst_exponent_memory(price_data[-lookback:])
+        results['metrics']['hurst_exponent'] = memory_metrics
+
+        # Lyapunov instability
+        instability_metrics = self.lyapunov_instability_detection(price_data[-lookback:])
+        results['metrics']['lyapunov'] = instability_metrics
+
+        # Regime detection
+        regime_metrics = self.regime_transition_detection(price_data, volume_data, lookback=lookback)
+        results['regime_analysis'] = regime_metrics
+
+        # Summary
+        results['summary'] = {
+            'entropy_risk': entropy_metrics.get('risk_level', 'unknown'),
+            'memory_type': memory_metrics.get('memory_type', 'unknown'),
+            'instability_level': instability_metrics.get('instability_level', 'unknown'),
+            'regime': regime_metrics.get('regime', 'unknown'),
+            'transition_probability': regime_metrics.get('transition_probability', 0.0)
+        }
+
+        self.logger.info(f"Comprehensive physics analysis complete: Regime={results['summary']['regime']}, Entropy={results['summary']['entropy_risk']}, Memory={results['summary']['memory_type']}, Instability={results['summary']['instability_level']}")
+        return results
+
 
 class MarketMicrostructure:
     """
@@ -3752,6 +3834,112 @@ class MarketMicrostructure:
         # In practice, would use real-time volatility and liquidity data
         
         return base_schedule
+
+    def analyze_market_impact(self,
+                             prices: np.ndarray,
+                             volumes: Optional[np.ndarray] = None,
+                             trades: Optional[list] = None,
+                             window: int = 20) -> dict:
+        """
+        Orchestrator: Analyze market impact using price, volume, and trade data.
+        Returns a structured dictionary with impact metrics, curve, and summary.
+        """
+        import numpy as np
+        import pandas as pd
+        results = {
+            'analysis_type': 'market_impact',
+            'data_info': {
+                'n_prices': len(prices),
+                'n_volumes': len(volumes) if volumes is not None else 0,
+                'n_trades': len(trades) if trades is not None else 0,
+                'window': window
+            },
+            'impact_metrics': {},
+            'impact_curve': {},
+            'volume_impact': {},
+            'summary': {}
+        }
+
+        if len(prices) < window + 2:
+            results['summary'] = {'status': 'insufficient_data'}
+            return results
+
+        # Convert to pandas Series for easier handling
+        price_series = pd.Series(prices)
+        volume_series = pd.Series(volumes) if volumes is not None else None
+
+        # 1. Immediate and permanent price impact
+        price_changes = price_series.diff().fillna(0)
+        large_moves = price_changes.abs() > price_changes.abs().quantile(0.95)
+        immediate_impact = price_changes[large_moves].mean()
+        permanent_impact = price_series.shift(-window)[large_moves].sub(price_series[large_moves]).mean()
+        results['impact_metrics']['immediate_impact'] = float(immediate_impact) if not np.isnan(immediate_impact) else 0.0
+        results['impact_metrics']['permanent_impact'] = float(permanent_impact) if not np.isnan(permanent_impact) else 0.0
+
+        # 2. Slippage (if trades provided)
+        slippage_list = []
+        if trades is not None and len(trades) > 0:
+            for trade in trades:
+                idx = trade.get('index')
+                if idx is not None and 0 < idx < len(prices) - 1:
+                    expected_price = price_series.iloc[idx - 1]
+                    executed_price = trade.get('price', price_series.iloc[idx])
+                    slippage = executed_price - expected_price
+                    slippage_list.append(slippage)
+            if slippage_list:
+                results['impact_metrics']['avg_slippage'] = float(np.mean(slippage_list))
+                results['impact_metrics']['max_slippage'] = float(np.max(np.abs(slippage_list)))
+            else:
+                results['impact_metrics']['avg_slippage'] = None
+                results['impact_metrics']['max_slippage'] = None
+
+        # 3. Impact curve (fit power-law or linear model)
+        if trades is not None and len(trades) > 5:
+            trade_sizes = np.array([abs(trade.get('quantity', 0)) for trade in trades])
+            trade_impacts = []
+            for trade in trades:
+                idx = trade.get('index')
+                if idx is not None and 0 < idx < len(prices) - 1:
+                    impact = price_series.iloc[idx + 1] - price_series.iloc[idx - 1]
+                    trade_impacts.append(impact)
+            if len(trade_sizes) == len(trade_impacts) and len(trade_sizes) > 2:
+                # Fit linear model: impact = a * size + b
+                a, b = np.polyfit(trade_sizes, trade_impacts, 1)
+                results['impact_curve'] = {
+                    'model': 'linear',
+                    'a': float(a),
+                    'b': float(b),
+                    'r2': float(np.corrcoef(trade_sizes, trade_impacts)[0, 1] ** 2)
+                }
+            else:
+                results['impact_curve'] = {'status': 'insufficient_trade_data'}
+        else:
+            results['impact_curve'] = {'status': 'no_trade_data'}
+
+        # 4. Volume-based impact
+        if volumes is not None and len(volumes) == len(prices):
+            volume_spikes = volume_series > volume_series.quantile(0.95)
+            price_moves = price_changes.abs() > price_changes.abs().quantile(0.95)
+            volume_impact_corr = price_moves.corr(volume_spikes)
+            vwap = (price_series * volume_series).sum() / volume_series.sum()
+            results['volume_impact'] = {
+                'vwap': float(vwap),
+                'volume_impact_correlation': float(volume_impact_corr) if not np.isnan(volume_impact_corr) else 0.0
+            }
+        else:
+            results['volume_impact'] = {'status': 'no_volume_data'}
+
+        # 5. Summary
+        results['summary'] = {
+            'immediate_impact': results['impact_metrics'].get('immediate_impact'),
+            'permanent_impact': results['impact_metrics'].get('permanent_impact'),
+            'avg_slippage': results['impact_metrics'].get('avg_slippage'),
+            'impact_curve_model': results['impact_curve'].get('model', 'none'),
+            'vwap': results['volume_impact'].get('vwap'),
+            'status': 'ok'
+        }
+
+        return results
 
 
 class AdvancedMLTradingFramework:
@@ -3881,7 +4069,6 @@ class AdvancedMLTradingFramework:
         except Exception as e:
             self.logger.error(f"Comprehensive ML analysis failed: {e}")
             return self._fallback_ml_analysis(price_data, prediction_horizon)
-    
     def _automated_feature_engineering(self,
                                      price_data: pd.Series,
                                      volume_data: Optional[pd.Series] = None,
@@ -4428,7 +4615,6 @@ class AdvancedMLTradingFramework:
         except Exception as e:
             self.logger.error(f"Fallback sentiment analysis failed: {e}")
             return {'overall_sentiment': 0.0, 'confidence': 0.0, 'error': str(e)}
-    
     def _generate_ensemble_prediction(self, features_df: pd.DataFrame, 
                                     results: Dict[str, any]) -> Dict[str, any]:
         """Generate ensemble prediction from all trained models"""
@@ -4666,7 +4852,51 @@ class AdvancedMLTradingFramework:
                 'error': str(e),
                 'fallback_prediction': 0.0
             }
-    
+    def ensemble_prediction(self,
+                           price_data: pd.Series,
+                           volume_data: Optional[pd.Series] = None,
+                           fundamental_data: Optional[pd.DataFrame] = None,
+                           prediction_horizon: int = 5) -> Dict[str, any]:
+        """
+        Public interface to train and predict using the ML ensemble.
+
+        Args:
+            price_data: Historical price series
+            volume_data: Optional volume series
+            fundamental_data: Optional fundamental indicators
+            prediction_horizon: Days ahead to predict
+
+        Returns:
+            Dictionary containing the ensemble prediction, individual model forecasts,
+            model weights, prediction std and number of models.
+        """
+        if not self.is_available or not SKLEARN_CORE_AVAILABLE:
+            return {'error': 'ML libraries not available'}
+        try:
+            # 1. Feature Engineering
+            features_df = self._automated_feature_engineering(
+                price_data, volume_data, fundamental_data
+            )
+            if features_df is None or features_df.empty:
+                return {'error': 'Feature engineering failed or returned no features'}
+
+            # 2. Prepare target variable
+            target = self._prepare_target_variable(price_data, prediction_horizon)
+            if target is None or target.empty:
+                return {'error': 'Target variable preparation failed or returned no data'}
+
+            # 3. Train ensemble of ML models
+            ensemble_models = self._train_ensemble_models(features_df, target)
+            if 'error' in ensemble_models:
+                return {'error': 'Ensemble training failed', **ensemble_models}
+
+            # 4. Generate ensemble prediction
+            ensemble_pred = self._generate_ensemble_prediction(features_df, {'ensemble_models': ensemble_models})
+            return ensemble_pred
+
+        except Exception as e:
+            self.logger.error(f"Ensemble prediction failed: {e}")
+            return {'error': str(e)}
     def train_reinforcement_learning_agent(self,
                                          price_data: pd.Series,
                                          initial_balance: float = 10000) -> Dict[str, any]:

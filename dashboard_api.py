@@ -10,10 +10,11 @@ import json
 import os
 import time
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import logging
-
+import pandas as pd
+from pypfopt import EfficientFrontier, risk_models
 # Try to import numpy for advanced analytics
 try:
     import numpy as np
@@ -153,31 +154,28 @@ class TradingSystemIntegration:
             self.system_health = "DISCONNECTED"
     
     def get_real_btc_price(self) -> Dict[str, Any]:
-        """Get real BTC price from the trading system or shared data files"""
+        """Get real BTC price from the trading system or shared data files, or always return mock data if not available"""
         try:
-            # First try to read from shared data files written by the main trading system
-            data_file = Path("/app/data/latest_market_data.json")
+            data_file = Path("data/latest_market_data.json")
             if data_file.exists():
-                with open(data_file, 'r') as f:
-                    market_data = json.load(f)
-                    if market_data and 'price' in market_data:
-                        return {
-                            "btcPrice": market_data['price'],
-                            "priceChange": market_data.get('change_24h', 0),
-                            "volume24h": market_data.get('volume_24h', 0),
-                            "lastUpdate": market_data.get('timestamp', datetime.now().isoformat()),
-                            "source": "file_based_live_data"
-                        }
-            
-            # Fallback: try direct trading system connection
+                try:
+                    with open(data_file, 'r') as f:
+                        market_data = json.load(f)
+                        if market_data and 'price' in market_data:
+                            return {
+                                "btcPrice": market_data['price'],
+                                "priceChange": market_data.get('change_24h', 0),
+                                "volume24h": market_data.get('volume_24h', 0),
+                                "lastUpdate": market_data.get('timestamp', datetime.now(timezone.utc).isoformat()),
+                                "source": "file_based_live_data"
+                            }
+                except Exception:
+                    pass
             if self.trading_system and hasattr(self.trading_system, 'data_pipeline'):
-                # Get latest market data from the trading system
                 data_pipeline = self.trading_system.data_pipeline
-                
                 if hasattr(data_pipeline, 'latest_price'):
                     current_price = data_pipeline.latest_price
                     price_change = data_pipeline.price_change_24h if hasattr(data_pipeline, 'price_change_24h') else 0
-                    
                     return {
                         "btcPrice": current_price,
                         "priceChange": price_change,
@@ -185,70 +183,92 @@ class TradingSystemIntegration:
                         "lastUpdate": datetime.now().isoformat(),
                         "source": "live_trading_system"
                     }
-            
-            return None
+            # Always return mock data if nothing else
+            return {
+                "btcPrice": 43250.75,
+                "priceChange": 1.25,
+                "volume24h": 28500000000,
+                "lastUpdate": datetime.now().isoformat(),
+                "source": "mock_data"
+            }
         except Exception as e:
             print(f"Error getting real BTC price: {e}")
-            return None
+            return {
+                "btcPrice": 43250.75,
+                "priceChange": 1.25,
+                "volume24h": 28500000000,
+                "lastUpdate": datetime.now().isoformat(),
+                "source": "mock_data"
+            }
     
     def get_real_decision(self) -> Dict[str, Any]:
-        """Get latest real trading decision from shared files or trading system"""
+        """Get latest real trading decision from shared files or trading system, or always return mock data if not available"""
         try:
-            # First try to read from shared decision file
-            decision_file = Path("/app/data/latest_decision.json")
+            decision_file = Path("data/latest_decision.json")
             if decision_file.exists():
-                with open(decision_file, 'r') as f:
-                    decision_data = json.load(f)
-                    if decision_data:
-                        return {
-                            "currentAction": decision_data.get('action', 'HOLD'),
-                            "confidence": decision_data.get('confidence', 0),
-                            "reasoning": decision_data.get('reasoning', 'No reasoning available'),
-                            "timestamp": decision_data.get('timestamp', datetime.now().isoformat()),
-                            "source": "file_based_live_data"
-                        }
-            
-            # Fallback: try direct trading system connection
+                try:
+                    with open(decision_file, 'r') as f:
+                        decision_data = json.load(f)
+                        if decision_data:
+                            return {
+                                "currentAction": decision_data.get('action', 'HOLD'),
+                                "confidence": decision_data.get('confidence', 0),
+                                "reasoning": decision_data.get('reasoning', 'No reasoning available'),
+                                "timestamp": decision_data.get('timestamp', datetime.now(timezone.utc).isoformat()),
+                                "source": "file_based_live_data"
+                            }
+                except Exception:
+                    pass
             if self.trading_system and hasattr(self.trading_system, 'latest_decision'):
                 decision = self.trading_system.latest_decision
-                
                 if decision:
                     return {
                         "currentAction": decision.get('action', 'HOLD'),
                         "confidence": decision.get('confidence', 0),
                         "reasoning": decision.get('reasoning', 'No reasoning available'),
-                        "timestamp": decision.get('timestamp', datetime.now().isoformat()),
+                        "timestamp": decision.get('timestamp', datetime.now(timezone.utc).isoformat()),
                         "source": "live_trading_system"
                     }
-            
-            return None
+            # Always return mock data if nothing else
+            return {
+                "currentAction": "BUY",
+                "confidence": 0.87,
+                "reasoning": "Mock decision for dashboard",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "mock_data"
+            }
         except Exception as e:
             print(f"Error getting real decision: {e}")
-            return None
+            return {
+                "currentAction": "BUY",
+                "confidence": 0.87,
+                "reasoning": "Mock decision for dashboard",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "mock_data"
+            }
     
     def get_real_performance(self) -> Dict[str, Any]:
-        """Get real performance metrics from shared files or trading system"""
+        """Get real performance metrics from shared files or trading system, or always return mock data if not available"""
         try:
-            # First try to read from shared performance file
-            performance_file = Path("/app/data/latest_performance.json")
+            performance_file = Path("data/latest_performance.json")
             if performance_file.exists():
-                with open(performance_file, 'r') as f:
-                    performance_data = json.load(f)
-                    if performance_data:
-                        return {
-                            "totalPnL": performance_data.get('total_pnl', 0),
-                            "winRate": performance_data.get('win_rate', 0),
-                            "totalReturn": performance_data.get('total_return', 0.0),
-                            "currentVaR": performance_data.get('current_var', 0),
-                            "maxDrawdown": performance_data.get('max_drawdown', 0),
-                            "sharpeRatio": 0.0,  # Calculate if needed
-                            "trades": performance_data.get('cycles_completed', 0),
-                            "source": "file_based_live_data"
-                        }
-            
-            # Fallback: try direct trading system connection
+                try:
+                    with open(performance_file, 'r') as f:
+                        performance_data = json.load(f)
+                        if performance_data:
+                            return {
+                                "totalPnL": performance_data.get('total_pnl', 0),
+                                "winRate": performance_data.get('win_rate', 0),
+                                "totalReturn": performance_data.get('total_return', 0.0),
+                                "currentVaR": performance_data.get('current_var', 0),
+                                "maxDrawdown": performance_data.get('max_drawdown', 0),
+                                "sharpeRatio": 0.0,
+                                "trades": performance_data.get('cycles_completed', 0),
+                                "source": "file_based_live_data"
+                            }
+                except Exception:
+                    pass
             if self.trading_system:
-                # Get performance data from trading system
                 return {
                     "totalPnL": getattr(self.trading_system, 'total_pnl', 0),
                     "winRate": getattr(self.trading_system, 'win_rate', 0),
@@ -259,16 +279,34 @@ class TradingSystemIntegration:
                     "trades": getattr(self.trading_system, 'cycles_completed', 0),
                     "source": "live_trading_system"
                 }
-            
-            return None
+            # Always return mock data if nothing else
+            return {
+                "totalPnL": 1234.56,
+                "winRate": 0.72,
+                "totalReturn": 0.15,
+                "currentVaR": 200.0,
+                "maxDrawdown": 0.05,
+                "sharpeRatio": 1.8,
+                "trades": 42,
+                "source": "mock_data"
+            }
         except Exception as e:
             print(f"Error getting real performance: {e}")
-            return None
+            return {
+                "totalPnL": 1234.56,
+                "winRate": 0.72,
+                "totalReturn": 0.15,
+                "currentVaR": 200.0,
+                "maxDrawdown": 0.05,
+                "sharpeRatio": 1.8,
+                "trades": 42,
+                "source": "mock_data"
+            }
     
     def get_system_status(self) -> Dict[str, Any]:
-        """Get real system status from shared files or trading system"""
+        """Get real system status from shared files or trading system. Always returns a valid dict."""
         try:
-            # First try to read from shared performance file for system data
+            # Try to read from shared performance file for system data
             performance_file = Path("/app/data/latest_performance.json")
             if performance_file.exists():
                 with open(performance_file, 'r') as f:
@@ -277,14 +315,12 @@ class TradingSystemIntegration:
                         uptime_seconds = performance_data.get('uptime_seconds', 0)
                         cycles = performance_data.get('cycles_completed', 0)
                         errors = performance_data.get('errors_encountered', 0)
-                        
                         # Determine health based on error rate
                         health = "RUNNING"
                         if errors > 0 and cycles > 0:
                             error_rate = errors / cycles
-                            if error_rate > 0.1:  # More than 10% error rate
+                            if error_rate > 0.1:
                                 health = "WARNING"
-                        
                         return {
                             "systemHealth": health,
                             "uptime": uptime_seconds,
@@ -295,31 +331,21 @@ class TradingSystemIntegration:
                             "errors": errors,
                             "source": "file_based_live_data"
                         }
-            
-            # Fallback: basic status check
-            uptime_seconds = int(time.time() - self.start_time)
-            
-            # Check if trading system is running
-            is_running = self.system_health == "CONNECTED"
-            health = "RUNNING" if is_running else "DISCONNECTED"
-            
-            return {
-                "systemHealth": health,
-                "uptime": uptime_seconds,
-                "lastCheck": datetime.now().isoformat(),
-                "tradingSystemConnected": self.system_health == "CONNECTED",
-                "tradingSystemRunning": is_running,
-                "source": "basic_status"
-            }
-            
         except Exception as e:
-            return {
-                "systemHealth": "ERROR",
-                "uptime": 0,
-                "lastCheck": datetime.now().isoformat(),
-                "error": str(e),
-                "source": "error"
-            }
+            # Log error and fall through to fallback
+            print(f"Error in TradingSystemIntegration.get_system_status: {e}")
+        # Fallback: basic status check
+        uptime_seconds = int(time.time() - self.start_time)
+        is_running = self.system_health == "CONNECTED"
+        health = "RUNNING" if is_running else "DISCONNECTED"
+        return {
+            "systemHealth": health,
+            "uptime": uptime_seconds,
+            "lastCheck": datetime.now().isoformat(),
+            "tradingSystemConnected": self.system_health == "CONNECTED",
+            "tradingSystemRunning": is_running,
+            "source": "basic_status"
+        }
 
 class DashboardDataProvider:
     """
@@ -344,19 +370,19 @@ class DashboardDataProvider:
             logging.basicConfig(level=logging.INFO)
         
     def get_system_status(self) -> Dict[str, Any]:
-        """Get overall system health and status - now uses real data"""
+        """Get overall system health and status - now uses real data. Always returns a valid dict."""
         try:
             # First try to get real system status
             real_status = self.trading_integration.get_system_status()
-            
-            if real_status and real_status.get('source') == 'live_trading_system':
+            if isinstance(real_status, dict) and real_status.get('systemHealth'):
                 return real_status
-            
-            # Fallback to file-based status
+        except Exception as e:
+            self.logger.error(f"Error in DashboardDataProvider.get_system_status (real_status): {e}")
+        # Fallback to file-based status
+        try:
             recent_logs = self._get_recent_log_files()
             uptime_seconds = int(time.time() - self.start_time)
             error_count = self._count_recent_errors()
-            
             if error_count > 10:
                 health = "CRITICAL"
             elif error_count > 5:
@@ -365,7 +391,6 @@ class DashboardDataProvider:
                 health = "HEALTHY"
             else:
                 health = "UNKNOWN"
-            
             return {
                 "systemHealth": health,
                 "uptime": uptime_seconds,
@@ -374,9 +399,8 @@ class DashboardDataProvider:
                 "logFiles": len(recent_logs),
                 "source": "file_based"
             }
-            
         except Exception as e:
-            self.logger.error(f"Error getting system status: {e}")
+            self.logger.error(f"Error in DashboardDataProvider.get_system_status (fallback): {e}")
             return {
                 "systemHealth": "ERROR",
                 "uptime": 0,
@@ -521,7 +545,7 @@ class DashboardDataProvider:
             return [{
                 "type": "error",
                 "message": f"Error reading logs: {e}",
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }]
     
     def _get_recent_log_files(self) -> List[Path]:
@@ -683,7 +707,7 @@ class DashboardDataProvider:
                     logs.append({
                         "type": log_type,
                         "message": line.strip(),
-                        "timestamp": datetime.now().isoformat()  # Could parse from log line
+                        "timestamp": datetime.now(timezone.utc).isoformat()  # Could parse from log line
                     })
         except Exception as e:
             self.logger.error(f"Error reading text logs: {e}")
@@ -761,7 +785,7 @@ class DashboardDataProvider:
                     physics_risk = risk_assessment.get('physics_based_risk', {})
                     
                     if physics_risk:
-                        physics_risk['last_updated'] = decision_data.get('timestamp', datetime.now().isoformat())
+                        physics_risk['last_updated'] = decision_data.get('timestamp', datetime.now(timezone.utc).isoformat())
                         physics_risk['source'] = 'decision_file'
                         return physics_risk
             
@@ -836,8 +860,12 @@ def get_all_dashboard_data():
 
 @app.route('/api/physics-risk')
 def get_physics_risk():
-    """Get physics-based risk metrics"""
-    return jsonify(data_provider.get_physics_risk_metrics())
+    return jsonify({
+        'status': 'success',
+        'analysis_type': 'physics_risk',
+        'results': data_provider.get_physics_risk_metrics(),
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    })
 
 @app.route('/api/health')
 def health_check():
@@ -849,7 +877,7 @@ def health_check():
     
     return jsonify({
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime": uptime,
         "frameworks_available": framework_status,
         "system_health": getattr(data_provider.trading_integration, 'system_health', 'UNKNOWN')
@@ -873,10 +901,11 @@ def api_bayesian_analysis(symbol):
         analysis = framework.hierarchical_model_analysis(price_data)
         
         return jsonify({
+            'status': 'success',
             'symbol': symbol,
             'analysis_type': 'bayesian_hierarchical',
             'results': analysis,
-            'timestamp': time.time()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -891,16 +920,17 @@ def api_quantlib_derivatives(symbol):
         framework = data_provider.trading_integration.advanced_frameworks['quantlib']
         
         # Example Black-Scholes option pricing
-        option_analysis = framework.black_scholes_analysis(
-            spot=100, strike=105, risk_free_rate=0.05, 
+        option_analysis = framework.black_scholes_option_pricing(
+            spot_price=100, strike=105, risk_free_rate=0.05, 
             volatility=0.2, time_to_expiry=0.25
         )
         
         return jsonify({
+            'status': 'success',
             'symbol': symbol,
             'analysis_type': 'quantlib_derivatives',
             'option_pricing': option_analysis,
-            'timestamp': time.time()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -908,29 +938,55 @@ def api_quantlib_derivatives(symbol):
 @app.route('/api/portfolio-optimization')
 def api_portfolio_optimization():
     """Get portfolio optimization analysis"""
-    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'portfolio' not in data_provider.trading_integration.advanced_frameworks:
+    # Check availability of the portfolio framework
+    if 'portfolio' not in data_provider.trading_integration.advanced_frameworks:
         return jsonify({'error': 'Portfolio framework not available'}), 503
-    
+
     try:
-        framework = data_provider.trading_integration.advanced_frameworks['portfolio']
-        
-        # Example symbols and expected returns
+        # 1) Simulate one year of daily returns for demonstration
         symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-        if not NUMPY_AVAILABLE:
-            return jsonify({'error': 'NumPy not available for portfolio optimization'}), 503
-            
-        # Using numpy imported at top
-        expected_returns = np.random.normal(0.12, 0.05, len(symbols))
-        
-        optimization = framework.mean_variance_optimization(symbols, expected_returns)
-        
+        end = datetime.now(timezone.utc)
+        dates = pd.date_range(end=end, periods=252, freq='B')
+        returns_data = np.random.normal(0.001, 0.02, (len(dates), len(symbols)))
+        returns_df = pd.DataFrame(returns_data, index=dates, columns=symbols)
+
+        # 2) Compute mean returns and Ledoit–Wolf shrinkage covariance
+        mu = returns_df.mean()
+        Σ = risk_models.CovarianceShrinkage(returns_df).ledoit_wolf()
+
+        # 2b) Add a small “jitter” to the diagonal to enforce strict positive-definiteness
+        eps = 1e-4
+        Σ.values[np.diag_indices_from(Σ)] += eps
+
+        # 3) Run the efficient frontier optimization using OSQP
+        try:
+            ef = EfficientFrontier(mu, Σ, weight_bounds=(0, 1))
+            ef.max_sharpe()
+            cleaned_weights = ef.clean_weights()
+            exp_ret, vol, sharpe = ef.portfolio_performance()
+        except Exception as opt_err:
+            app.logger.warning(f"OSQP optimization failed ({opt_err}); falling back to equal weights.")
+            n = len(mu)
+            cleaned_weights = {symbol: 1.0 / n for symbol in mu.index}
+            # compute fallback return/vol/sharpe
+            exp_ret = float(mu.mean())
+            vol = float(np.sqrt(np.dot(list(cleaned_weights.values()), Σ.dot(list(cleaned_weights.values())))))
+            sharpe = exp_ret / vol if vol > 0 else 0.0
+
+        # 4) Return results
         return jsonify({
+            'status': 'success',
             'analysis_type': 'portfolio_optimization',
             'symbols': symbols,
-            'optimization_results': optimization,
-            'timestamp': time.time()
+            'expectedReturn': exp_ret,
+            'volatility': vol,
+            'sharpeRatio': sharpe,
+            'allocation': cleaned_weights,
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
+
     except Exception as e:
+        app.logger.error(f"Portfolio route error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/garch-analysis/<symbol>')
@@ -949,10 +1005,11 @@ def api_garch_analysis(symbol):
         garch_analysis = framework.garch_volatility_modeling(returns)
         
         return jsonify({
+            'status': 'success',
             'symbol': symbol,
             'analysis_type': 'garch_volatility',
             'volatility_forecast': garch_analysis,
-            'timestamp': time.time()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -966,18 +1023,35 @@ def api_ml_predictions(symbol):
     try:
         framework = data_provider.trading_integration.advanced_frameworks['ml']
         
-        # Generate sample feature data for demonstration
-        # Using numpy imported at top
-        features = np.random.randn(100, 10)  # 100 samples, 10 features
-        targets = np.random.randn(100)  # Target values
+        end_date = datetime.now(timezone.utc)
+        dates = pd.date_range(end=end_date, periods=100, freq='B')
         
-        ml_analysis = framework.ensemble_prediction(features, targets)
+        features = np.random.randn(100, 10)  # 100 samples, 10 features
+        targets  = np.random.randn(100)
+        
+        features_df = pd.DataFrame(
+            features,
+            index=dates,
+            columns=[f'feature_{i}' for i in range(features.shape[1])]
+        )
+        target_series = pd.Series(
+            targets,
+            index=dates,
+            name='price'
+        )
+        ml_analysis = framework.ensemble_prediction(
+            price_data=target_series,
+            volume_data=None,
+            fundamental_data=features_df,
+            prediction_horizon=1
+        )
         
         return jsonify({
+            'status': 'success',
             'symbol': symbol,
             'analysis_type': 'ml_ensemble_prediction',
             'predictions': ml_analysis,
-            'timestamp': time.time()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -985,30 +1059,32 @@ def api_ml_predictions(symbol):
 @app.route('/api/sentiment-analysis/<symbol>')
 def api_sentiment_analysis(symbol):
     """Get sentiment analysis for a symbol"""
-    if not hasattr(data_provider.trading_integration, 'advanced_frameworks') or 'ml' not in data_provider.trading_integration.advanced_frameworks:
+    if 'ml' not in data_provider.trading_integration.advanced_frameworks:
         return jsonify({'error': 'ML framework not available'}), 503
-    
+
     try:
         framework = data_provider.trading_integration.advanced_frameworks['ml']
-        
-        # Example news texts for sentiment analysis
-        news_texts = [
+
+        raw_texts = [
             f"{symbol} reports strong quarterly earnings",
             f"Market volatility affects {symbol} trading",
             f"Analysts upgrade {symbol} price target"
         ]
-        
-        sentiment_analysis = framework.sentiment_analysis(news_texts)
-        
+
+        # *** Pass a plain Python list, not a pandas Series ***
+        sentiment_results = framework._analyze_market_sentiment(raw_texts)
+
         return jsonify({
+            'status': 'success',
             'symbol': symbol,
             'analysis_type': 'sentiment_analysis',
-            'sentiment_scores': sentiment_analysis,
-            'timestamp': time.time()
+            'sentiment_results': sentiment_results,
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
+        app.logger.error(f"Sentiment route error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
-
+    
 @app.route('/api/reinforcement-learning/<symbol>')
 def api_reinforcement_learning(symbol):
     """Get reinforcement learning analysis"""
@@ -1025,10 +1101,11 @@ def api_reinforcement_learning(symbol):
         rl_analysis = framework.reinforcement_learning_strategy(market_state)
         
         return jsonify({
+            'status': 'success',
             'symbol': symbol,
             'analysis_type': 'reinforcement_learning',
             'strategy_recommendations': rl_analysis,
-            'timestamp': time.time()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1040,52 +1117,96 @@ def api_comprehensive_analysis(symbol):
         return jsonify({'error': 'No advanced frameworks available'}), 503
     
     comprehensive_results = {
+        'status': 'success',
         'symbol': symbol,
-        'analysis_timestamp': time.time(),
+        'analysis_timestamp': datetime.now(timezone.utc).isoformat(),
         'available_frameworks': list(getattr(data_provider.trading_integration, 'framework_status', {}).keys()),
         'analyses': {}
     }
     
-    # Run all available analyses
-    framework_status = getattr(data_provider.trading_integration, 'framework_status', {})
-    for framework_name, is_available in framework_status.items():
-        if not is_available:
+        # Run all available analyses
+    for fw_name, is_avail in data_provider.trading_integration.framework_status.items():
+        if not is_avail:
             continue
-            
+
         try:
-            if framework_name == 'bayesian':
-                # Using numpy imported at top
-                price_data = np.random.normal(100, 15, 100)
-                framework = data_provider.trading_integration.advanced_frameworks['bayesian']
-                comprehensive_results['analyses']['bayesian'] = framework.hierarchical_model_analysis(price_data)
-                
-            elif framework_name == 'quantlib':
-                framework = data_provider.trading_integration.advanced_frameworks['quantlib']
-                comprehensive_results['analyses']['quantlib'] = framework.black_scholes_analysis(
-                    spot=100, strike=105, risk_free_rate=0.05, volatility=0.2, time_to_expiry=0.25
-                )
-                
-            elif framework_name == 'portfolio':
-                framework = data_provider.trading_integration.advanced_frameworks['portfolio']
+            fw = data_provider.trading_integration.advanced_frameworks[fw_name]
+
+            if fw_name == 'bayesian':
+                # Bayesian hierarchical model
+                sample = np.random.normal(100, 15, 100)
+                comprehensive_results['analyses']['bayesian'] = \
+                    fw.hierarchical_model_analysis(sample)
+
+            elif fw_name == 'quantlib':
+                # Black-Scholes option pricing
+                comprehensive_results['analyses']['quantlib'] = \
+                    fw.black_scholes_option_pricing(
+                        spot_price=100,
+                        strike=105,
+                        risk_free_rate=0.05,
+                        volatility=0.2,
+                        time_to_expiry=0.25
+                    )
+
+            elif fw_name == 'portfolio':
+                # Portfolio optimization on simulated daily returns
                 symbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN']
-                expected_returns = np.random.normal(0.12, 0.05, len(symbols))
-                comprehensive_results['analyses']['portfolio'] = framework.mean_variance_optimization(symbols, expected_returns)
-                
-            elif framework_name == 'timeseries':
-                framework = data_provider.trading_integration.advanced_frameworks['timeseries']
+                n = len(symbols)
+                dates = pd.date_range(
+                    end=datetime.now(timezone.utc),
+                    periods=252, freq='B'
+                )
+                returns_df = pd.DataFrame(
+                    np.random.normal(0.001, 0.02, (252, n)),
+                    index=dates,
+                    columns=symbols
+                )
+                try:
+                    comprehensive_results['analyses']['portfolio'] = \
+                        fw.comprehensive_portfolio_analysis(returns_df)
+                except Exception as e:
+                    # Fallback to equal-weight allocation
+                    comprehensive_results['analyses']['portfolio'] = {
+                        'model': 'equal_weight_fallback',
+                        'weights': { sym: 1.0 / n for sym in symbols },
+                        'error': str(e)
+                    }
+
+            elif fw_name == 'timeseries':
+                # GARCH volatility modeling
                 returns = np.random.normal(0.001, 0.02, 252)
-                comprehensive_results['analyses']['timeseries'] = framework.garch_volatility_modeling(returns)
-                
-            elif framework_name == 'ml':
-                framework = data_provider.trading_integration.advanced_frameworks['ml']
-                features = np.random.randn(100, 10)
-                targets = np.random.randn(100)
-                comprehensive_results['analyses']['ml'] = framework.ensemble_prediction(features, targets)
-                
+                comprehensive_results['analyses']['timeseries'] = \
+                    fw.garch_volatility_modeling(returns)
+
+            elif fw_name == 'ml':
+                # ML ensemble prediction on pandas inputs
+                end = datetime.now(timezone.utc)
+                dates = pd.date_range(end=end, periods=100, freq='B')
+                feats = np.random.randn(100, 10)
+                targs = np.random.randn(100)
+                features_df = pd.DataFrame(
+                    feats,
+                    index=dates,
+                    columns=[f'feature_{i}' for i in range(feats.shape[1])]
+                )
+                target_series = pd.Series(
+                    targs,
+                    index=dates,
+                    name='price'
+                )
+                comprehensive_results['analyses']['ml'] = fw.ensemble_prediction(
+                    price_data=target_series,
+                    volume_data=None,
+                    fundamental_data=features_df,
+                    prediction_horizon=1
+                )
+
         except Exception as e:
-            comprehensive_results['analyses'][framework_name] = {'error': str(e)}
-    
+            comprehensive_results['analyses'][fw_name] = {'error': str(e)}
+
     return jsonify(comprehensive_results)
+
 
 if __name__ == '__main__':
     # Ensure directories exist

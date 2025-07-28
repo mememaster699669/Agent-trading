@@ -97,9 +97,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # Remove agent-trading dependency to allow independent startup
     networks:
       - agent-trading-network
+    command: >
+      /bin/sh -c '
+        echo "Waiting for trading agent to complete first cycle...";
+        while [ ! -f /app/data/latest_market_data.json ]; do sleep 5; done;
+        echo "First data file detected, starting dashboard...";
+        exec gunicorn --bind 0.0.0.0:8080 --workers 1 --timeout 180 --access-logfile - dashboard_api:app
+      '
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s

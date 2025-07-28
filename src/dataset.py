@@ -683,8 +683,8 @@ class BTCDataManager:
             if 'quantlib' in self.advanced_frameworks:
                 quantlib_framework = self.advanced_frameworks['quantlib']
                 current_price = prices[-1]
-                option_analysis = quantlib_framework.black_scholes_analysis(
-                    spot=current_price,
+                option_analysis = quantlib_framework.black_scholes_option_pricing(
+                    spot_price=current_price,
                     strike=current_price * 1.05,
                     risk_free_rate=self.config.advanced_frameworks.risk_free_rate,
                     volatility=self.config.advanced_frameworks.default_volatility,

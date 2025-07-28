@@ -643,8 +643,8 @@ class AgentTradingSystem:
                     main_logger.info("Running QuantLib derivatives analysis...")
                     quantlib_framework = self.advanced_frameworks['quantlib']
                     current_price = prices[-1] if prices else 50000
-                    quantlib_result = quantlib_framework.black_scholes_analysis(
-                        spot=current_price, 
+                    quantlib_result = quantlib_framework.black_scholes_option_pricing(
+                        spot_price=current_price, 
                         strike=current_price * 1.05,  # 5% OTM call
                         risk_free_rate=0.05, 
                         volatility=0.3, 
@@ -664,7 +664,7 @@ class AgentTradingSystem:
                     portfolio_framework = self.advanced_frameworks['portfolio']
                     symbols = ['BTC', 'ETH', 'SPY', 'GOLD']  # Multi-asset analysis
                     expected_returns = [0.15, 0.12, 0.08, 0.05]  # Example expected returns
-                    portfolio_result = portfolio_framework.mean_variance_optimization(symbols, expected_returns)
+                    portfolio_result = portfolio_framework.comprehensive_portfolio_analysis(symbols, expected_returns)
                     analysis_results["analysis"]["portfolio"] = portfolio_result
                     analysis_results["frameworks_used"].append("portfolio")
                     main_logger.info("✅ Portfolio optimization completed")

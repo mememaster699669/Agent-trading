@@ -265,7 +265,7 @@ class QuantitativeAnalysisAgent:
                         'Cash': np.zeros(len(returns))
                     })
                     portfolio_analysis = self.portfolio_framework.comprehensive_portfolio_analysis(
-                        asset_returns=returns_df,
+                        returns_df=returns_df,
                         current_weights=np.array([0.7, 0.3])  # Example allocation
                     )
                     advanced_results['portfolio'] = portfolio_analysis
@@ -310,18 +310,18 @@ class QuantitativeAnalysisAgent:
                     confidence_levels=[0.68, 0.95, 0.99]
                 )
             else:
-                # Extract from advanced Bayesian analysis
+                # Extract from advanced Bayesian analysis and wrap in ProbabilisticForecast
                 bayesian_pred = advanced_results['bayesian'].get('hierarchical_prediction', {})
-                probabilistic_forecast = type('obj', (object,), {
-                    'mean': bayesian_pred.get('predicted_mean', prices[-1]),
-                    'std': bayesian_pred.get('predicted_std', np.std(returns) * prices[-1]),
-                    'probability_up': bayesian_pred.get('probability_increase', 0.5),
-                    'probability_down': 1 - bayesian_pred.get('probability_increase', 0.5),
-                    'confidence_intervals': bayesian_pred.get('confidence_intervals', {}),
-                    'expected_return': bayesian_pred.get('expected_return', 0.001),
-                    'upside_potential': bayesian_pred.get('upside_potential', 0.02),
-                    'downside_risk': bayesian_pred.get('downside_risk', 0.02)
-                })
+                probabilistic_forecast = ProbabilisticForecast(
+                    mean=bayesian_pred.get('predicted_mean', prices[-1]),
+                    std=bayesian_pred.get('predicted_std', np.std(returns) * prices[-1]),
+                    probability_up=bayesian_pred.get('probability_increase', 0.5),
+                    probability_down=1 - bayesian_pred.get('probability_increase', 0.5),
+                    confidence_intervals=bayesian_pred.get('confidence_intervals', {}),
+                    expected_return=bayesian_pred.get('expected_return', 0.001),
+                    upside_potential=bayesian_pred.get('upside_potential', 0.02),
+                    downside_risk=bayesian_pred.get('downside_risk', 0.02)
+                )
             
             # Regime detection
             regime_probs, regime_stats = self.quant_models.regime_detection_hmm(
@@ -538,9 +538,9 @@ class QuantitativeAnalysisAgent:
             
         except Exception as e:
             logger.log_error(
-                "quantitative_analysis_error",
-                str(e),
-                {
+                action="quantitative_analysis_error",
+                error_message=str(e),
+                context={
                     "market_data_keys": list(market_data.keys()),
                     "data_points": len(market_data.get('candles', []))
                 }
